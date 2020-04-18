@@ -11,6 +11,14 @@ starlette = "^0.13.3"
 uvloop = "^0.14.0"
 uvicorn = "^0.11.3"
 
+[tool.poetry.dev-dependencies]
+pytest = "^5.4.1"
+coverage = "^5.1"
+mypy = "^0.770"
+isort = "^4.3.21"
+bandit = "^1.6.2"
+flake8 = "^3.7.9"
+
 [build-system]
 requires = ["poetry>=1.0.5"]
 build-backend = "poetry.masonry.api"
