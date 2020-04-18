@@ -1,0 +1,13 @@
+[tool.poetry]
+name = "vertical"
+version = "0.0.1"
+description = ""
+authors = ["Gleb Karpushkin <rugleb@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8.2"
+
+[build-system]
+requires = ["poetry>=1.0.5"]
+build-backend = "poetry.masonry.api"
