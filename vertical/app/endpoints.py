@@ -6,8 +6,8 @@ from starlette.responses import Response
 
 from vertical import hdrs
 
-from .auth import AuthService
 from .adapters import RequestAdapter
+from .auth import AuthService
 from .models import Phone
 from .responses import ok
 from .types import Endpoint
