@@ -224,7 +224,7 @@ class AuthService:
     async def get_contract_by_token(self, token: str) -> Optional[Contract]:
         query = """
             SELECT
-                contracts.contract_id
+                contracts.contract_id AS id
                 , contracts.client_id
                 , contracts.token
                 , contracts.created_at
@@ -238,7 +238,7 @@ class AuthService:
             return None
         return Contract(**record)
 
-    async def identify(self, request_id: UUID, contract: Contract):
+    async def identify(self, request_id: UUID, contract_id: UUID):
         query = """
             INSERT INTO identifications
                 (request_id, contract_id)
@@ -251,8 +251,7 @@ class AuthService:
             ;
         """
 
-        record = await self._pool.fetchrow(query, request_id, contract.id)
-
+        record = await self._pool.fetchrow(query, request_id, contract_id)
         return Identification(**record)
 
     async def authorize(self, request: RequestProtocol) -> Identification:

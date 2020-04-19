@@ -43,10 +43,10 @@ async def phone_reliability(request: Request) -> Response:
     json = request.state.json
     phone = Phone.from_dict(json)
 
-    reliability_service = request.app.state.reliability_service
-    hunter_session = request.state.hunter_session
+    phone_service = request.app.state.phone_service
+    hunter_session = request.app.state.hunter_db.get_session()
 
-    reliability = reliability_service.verify(phone, hunter_session)
+    reliability = phone_service.verify(hunter_session, phone)
     data = reliability.to_dict()
 
     return ok(data)
