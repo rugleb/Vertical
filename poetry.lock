@@ -273,6 +273,14 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 version = "2.1.1"
 
 [[package]]
+category = "main"
+description = "Pure Python GOST cryptographic functions library"
+name = "pygost"
+optional = false
+python-versions = "*"
+version = "4.4"
+
+[[package]]
 category = "dev"
 description = "Python parsing module"
 name = "pyparsing"
@@ -425,7 +433,7 @@ python-versions = ">=3.6.1"
 version = "8.1"
 
 [metadata]
-content-hash = "97981174ac22ae8d424f7e4d2f1b7e7bcdff00431c44c2e4eef0880e03399015"
+content-hash = "491a1b49a1bae698210cf1636d0360c1a69c56ba4bafead53dc30d5a56fdadb1"
 python-versions = "^3.8.2"
 
 [metadata.files]
@@ -630,6 +638,9 @@ pycodestyle = [
 pyflakes = [
     {file = "pyflakes-2.1.1-py2.py3-none-any.whl", hash = "sha256:17dbeb2e3f4d772725c777fabc446d5634d1038f234e77343108ce445ea69ce0"},
     {file = "pyflakes-2.1.1.tar.gz", hash = "sha256:d976835886f8c5b31d47970ed689944a0262b5f3afa00a5a7b4dc81e5449f8a2"},
+]
+pygost = [
+    {file = "pygost-4.4.tar.gz", hash = "sha256:0b5bfab89243a76628c06eca5f878d7e73137f86336bf9d379bd31a553cfe995"},
 ]
 pyparsing = [
     {file = "pyparsing-2.4.7-py2.py3-none-any.whl", hash = "sha256:ef9d7589ef3c200abe66653d3f1ab1033c3c419ae9b9bdb1240a85b024efc88b"},
