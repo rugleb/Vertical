@@ -26,7 +26,9 @@ class RequestAdapter(RequestProtocol):
 
         self.method = request.method
         self.path = request.url.path
-        self.body = request.state.body
+
+        body = request.state.body
+        self.body = body.decode("utf-8") if body else None
 
         self.referer = request.headers.get(hdrs.REFERER)
 

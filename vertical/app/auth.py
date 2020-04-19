@@ -22,7 +22,7 @@ Model: DeclarativeMeta = declarative_base()
 class Client(Model):
     __tablename__ = "clients"
 
-    client_id = Column(pgsql.UUID, primary_key=True)
+    id = Column("client_id", pgsql.UUID, primary_key=True)
     name = Column(pgsql.VARCHAR)
     created_at = Column(pgsql.TIMESTAMP)
 
@@ -30,8 +30,8 @@ class Client(Model):
 class Contract(Model):
     __tablename__ = "contracts"
 
-    contract_id = Column(pgsql.UUID, primary_key=True)
-    client_id = Column(pgsql.UUID, ForeignKey(Client.client_id))
+    id = Column("contract_id", pgsql.UUID, primary_key=True)
+    client_id = Column(pgsql.UUID, ForeignKey(Client.id))
     token = Column(pgsql.VARCHAR)
     created_at = Column(pgsql.TIMESTAMP)
     expired_at = Column(pgsql.TIMESTAMP)
@@ -48,6 +48,39 @@ class Contract(Model):
         if self.revoked_at is None or self.revoked_at > now():
             return False
         return True
+
+
+class Request(Model):
+    __tablename__ = "requests"
+
+    id = Column("request_id", pgsql.UUID, primary_key=True)
+    remote = Column(pgsql.VARCHAR)
+    method = Column(pgsql.VARCHAR)
+    path = Column(pgsql.VARCHAR)
+    body = Column(pgsql.JSONB)
+    created_at = Column(pgsql.TIMESTAMP)
+
+
+class Response(Model):
+    __tablename__ = "responses"
+
+    id = Column("request_id", None, ForeignKey(Request.id), primary_key=True)
+    body = Column(pgsql.JSONB)
+    code = Column(pgsql.SMALLINT)
+    created_at = Column(pgsql.TIMESTAMP)
+
+    request = orm.relationship(Request)
+
+
+class Identification(Model):
+    __tablename__ = "identifications"
+
+    id = Column("identification_id", pgsql.UUID, primary_key=True)
+    request_id = Column(None, ForeignKey(Request.id))
+    contract_id = Column(None, ForeignKey(Contract.id))
+
+    request = orm.relationship(Request)
+    contract = orm.relationship(Contract)
 
 
 class AuthException(Exception):
@@ -106,7 +139,7 @@ class ContractRevoked(ContractUnavailable):
         return f"Your contract was revoked on {revoked_at}"
 
 
-class AsyncpgPoolConfig(TypedDict):
+class AsyncpgPoolConfig(TypedDict, total=False):
     dsn: str
     min_size: str
     max_size: str
@@ -140,17 +173,22 @@ class AuthService:
     async def ping(self) -> bool:
         return await self._pool.fetchval("SELECT TRUE;")
 
-    async def save_request(self, request: RequestProtocol) -> UUID:
+    async def save_request(self, request: RequestProtocol) -> Request:
         query = """
             INSERT INTO requests
                 (request_id, remote, method, path, body)
             VALUES
                 ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::JSONB)
-            RETURNING request_id
+            RETURNING
+                requests.request_id AS id
+                , requests.remote
+                , requests.method
+                , requests.path
+                , requests.body
             ;
         """
 
-        return await self._pool.fetchval(
+        record = await self._pool.fetchrow(
             query,
             request.identifier,
             request.remote_addr,
@@ -159,22 +197,29 @@ class AuthService:
             request.body,
         )
 
-    async def save_response(self, response: ResponseProtocol) -> UUID:
+        return Request(**record)
+
+    async def save_response(self, response: ResponseProtocol) -> Response:
         query = """
             INSERT INTO responses
                 (request_id, code, body)
             VALUES
                 ($1::UUID, $2::SMALLINT, $3::JSONB)
-            RETURNING request_id
+            RETURNING
+                responses.request_id AS id
+                , responses.code
+                , responses.body
             ;
         """
 
-        return await self._pool.fetchval(
+        record = await self._pool.fetchrow(
             query,
             response.request.identifier,
             response.code,
             response.body,
         )
+
+        return Response(**record)
 
     async def get_contract_by_token(self, token: str) -> Optional[Contract]:
         query = """
@@ -193,19 +238,24 @@ class AuthService:
             return None
         return Contract(**record)
 
-    async def identify(self, request_id: UUID, contract_id: UUID) -> UUID:
+    async def identify(self, request_id: UUID, contract: Contract):
         query = """
             INSERT INTO identifications
                 (request_id, contract_id)
             VALUES
                 ($1::UUID, $2::UUID)
-            RETURNING identification_id
+            RETURNING
+                identifications.identification_id AS id
+                , identifications.request_id
+                , identifications.contract_id
             ;
         """
 
-        return await self._pool.fetchval(query, request_id, contract_id)
+        record = await self._pool.fetchrow(query, request_id, contract.id)
 
-    async def authorize(self, request: RequestProtocol) -> UUID:
+        return Identification(**record)
+
+    async def authorize(self, request: RequestProtocol) -> Identification:
         if not request.authorization:
             raise AuthHeaderNotRecognized()
 
@@ -229,7 +279,7 @@ class AuthService:
             raise ContractRevoked(contract)
 
         request_id = UUID(request.identifier)
-        return await self.identify(request_id, contract.contract_id)
+        return await self.identify(request_id, contract.id)
 
     @classmethod
     def from_config(cls, config: AuthServiceConfig) -> "AuthService":

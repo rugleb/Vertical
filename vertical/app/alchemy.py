@@ -4,7 +4,7 @@ from marshmallow import EXCLUDE, Schema, fields, post_load
 from sqlalchemy import engine, orm
 
 
-class SQLAlchemyEngineConfig(TypedDict):
+class SQLAlchemyEngineConfig(TypedDict, total=False):
     name_or_url: str
     echo: bool
     echo_pool: bool
