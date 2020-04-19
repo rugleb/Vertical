@@ -3,6 +3,7 @@ COVERAGE := .coverage
 
 export PATH := $(VENV)/bin:$(PATH)
 
+MIGRATIONS := migrations
 VERTICAL := vertical
 TESTS := tests
 
@@ -33,16 +34,16 @@ cov: .coverage
 	coverage erase
 
 isort: .venv
-	isort -rc $(VERTICAL) $(TESTS)
+	isort -rc $(VERTICAL) $(TESTS) $(MIGRATIONS)
 
 mypy: .venv
 	mypy $(VERTICAL) $(TESTS)
 
 bandit: .venv
-	bandit -r $(VERTICAL) $(TESTS) --skip B101 --silent
+	bandit -r $(VERTICAL) $(TESTS) $(MIGRATIONS) --skip B101 --silent
 
 flake: .venv
-	flake8 $(VERTICAL) $(TESTS)
+	flake8 $(VERTICAL) $(TESTS) $(MIGRATIONS)
 
 lint: isort mypy bandit flake test
 
