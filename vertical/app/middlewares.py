@@ -26,6 +26,7 @@ class RequestIdentifierMiddleware(base.BaseHTTPMiddleware):
         request: Request,
         handler: base.RequestResponseEndpoint,
     ) -> Response:
+        # TODO: We should generate X-Request-Id
         request_id = request.headers.get(hdrs.X_REQUEST_ID)
 
         if not request_id:
@@ -56,6 +57,7 @@ class ExceptionHandlerMiddleware(base.BaseHTTPMiddleware):
 
 class ContentTypeMiddleware(base.BaseHTTPMiddleware):
 
+    # TODO: add logs
     async def dispatch(
         self,
         request: Request,
@@ -74,6 +76,7 @@ class ContentTypeMiddleware(base.BaseHTTPMiddleware):
 
 class JsonParserMiddleware(base.BaseHTTPMiddleware):
 
+    # TODO: add logs
     async def dispatch(
         self,
         request: Request,
@@ -108,6 +111,7 @@ class AccessMiddleware(base.BaseHTTPMiddleware):
         self.ignore_paths = set(ignore_paths) if ignore_paths else set()
         self.logger = AccessLogger(access_logger)
 
+    # TODO: add logs
     async def dispatch(
         self,
         request: Request,
@@ -126,6 +130,7 @@ class AccessMiddleware(base.BaseHTTPMiddleware):
         streaming: StreamingResponse = await handler(request)  # type: ignore
         response: Response = await resolve_response(streaming)
 
+        # TODO: we should try to do this in the background
         response_adapter = ResponseAdapter(request_adapter, response)
         await auth_service.save_response(response_adapter)
 

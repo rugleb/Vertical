@@ -15,6 +15,7 @@ __all__ = (
     "server_error",
 )
 
+# TODO: fix SERVER duplicate in uvicorn
 HEADERS: Final = {
     hdrs.SERVER: "UCB Vertical v0.0.1",
     hdrs.CONTENT_TYPE: "application/json; charset=utf-8",

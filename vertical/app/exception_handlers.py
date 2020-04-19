@@ -10,6 +10,7 @@ from .responses import create_response, validation_error
 __all__ = ("add_exception_handlers", )
 
 
+# TODO: add logs
 async def http_exception_handler(_: Request, e: HTTPException) -> Response:
     content = {
         "message": e.detail,
@@ -17,6 +18,7 @@ async def http_exception_handler(_: Request, e: HTTPException) -> Response:
     return create_response(content, e.status_code)
 
 
+# TODO: add logs
 async def auth_exception_handler(_: Request, e: AuthException) -> Response:
     content = {
         "message": e.render(),
@@ -24,6 +26,7 @@ async def auth_exception_handler(_: Request, e: AuthException) -> Response:
     return create_response(content, e.http_status)
 
 
+# TODO: add logs
 async def validation_error_handler(_: Request, e: ValidationError) -> Response:
     errors = e.messages
     return validation_error(errors)
