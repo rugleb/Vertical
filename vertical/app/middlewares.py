@@ -85,7 +85,7 @@ class JsonParserMiddleware(base.BaseHTTPMiddleware):
             json = orjson.loads(body)
         except ValueError:
             if body:
-                return bad_request("Could not parse request payload")
+                return bad_request("Could not parse request body")
             json = {}
 
         request.state.body = body

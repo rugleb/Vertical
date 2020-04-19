@@ -33,7 +33,6 @@ def auth(endpoint: Endpoint) -> Endpoint:
     return wrapper
 
 
-@auth
 async def ping(request: Request) -> Response:
     await get_auth_service(request).ping()
     return ok(message="pong")
