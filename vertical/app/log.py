@@ -19,7 +19,7 @@ class AccessLogger:
 
     def log(self, response: ResponseProtocol, request_time: float) -> None:
         extra = {
-            "request_time": request_time,
+            "request_time": round(request_time, 4),
             "request_id": response.request.identifier or MISSING,
             "remote_addr": response.request.remote_addr or MISSING,
             "referer": response.request.referer or MISSING,
@@ -29,7 +29,6 @@ class AccessLogger:
             "response_length": len(response.body),
             "response_code": response.code,
         }
-
         self.logger.info("Access info", extra=extra)
 
 
@@ -73,9 +72,9 @@ CONFIG = {
             "propagate": False,
         },
         "gunicorn.access": {
-            "level": "INFO",
+            "level": "ERROR",
             "handlers": [
-                "access",
+                "gunicorn.access",
             ],
             "propagate": False,
         },
@@ -89,7 +88,7 @@ CONFIG = {
         "uvicorn.access": {
             "level": "ERROR",
             "handlers": [
-                "console",
+                "gunicorn.access",
             ],
             "propagate": False,
         },
@@ -103,6 +102,11 @@ CONFIG = {
         "access": {
             "class": "logging.StreamHandler",
             "formatter": "access",
+            "stream": sys.stdout,
+        },
+        "gunicorn.access": {
+            "class": "logging.StreamHandler",
+            "formatter": "gunicorn.access",
             "stream": sys.stdout,
         },
     },
@@ -132,6 +136,16 @@ CONFIG = {
                 'response_length="%(response_length)d" '
                 'response_code="%(response_code)d" '
                 'request_time="%(request_time)s" '
+            ),
+            "datefmt": "%Y.%m.%d %H:%M:%S",
+        },
+        "gunicorn.access": {
+            "format": (
+                'time="%(asctime)s" '
+                'level="%(levelname)s" '
+                'logger="%(name)s" '
+                'pid="%(process)d" '
+                '"%(message)s"'
             ),
             "datefmt": "%Y.%m.%d %H:%M:%S",
         },
