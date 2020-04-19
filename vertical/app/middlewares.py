@@ -19,20 +19,6 @@ from .utils import is_valid_uuid
 __all__ = ("add_middlewares", )
 
 
-class ExceptionHandlerMiddleware(base.BaseHTTPMiddleware):
-
-    async def dispatch(
-        self,
-        request: Request,
-        handler: base.RequestResponseEndpoint,
-    ) -> Response:
-        try:
-            return await handler(request)
-        except Exception as e:
-            app_logger.error(f"Caught unhandled {e.__class__} exception: {e}")
-            return server_error()
-
-
 class RequestIdentifierMiddleware(base.BaseHTTPMiddleware):
 
     async def dispatch(
@@ -52,6 +38,20 @@ class RequestIdentifierMiddleware(base.BaseHTTPMiddleware):
         response.headers[hdrs.X_REQUEST_ID] = request_id
 
         return response
+
+
+class ExceptionHandlerMiddleware(base.BaseHTTPMiddleware):
+
+    async def dispatch(
+        self,
+        request: Request,
+        handler: base.RequestResponseEndpoint,
+    ) -> Response:
+        try:
+            return await handler(request)
+        except Exception as e:
+            app_logger.error(f"Caught unhandled {e.__class__} exception: {e}")
+            return server_error()
 
 
 class ContentTypeMiddleware(base.BaseHTTPMiddleware):
@@ -171,5 +171,5 @@ def add_middlewares(app: Starlette) -> None:
     app.add_middleware(AccessMiddleware, ignore_paths=["/ping"])
     app.add_middleware(JsonParserMiddleware)
     app.add_middleware(ContentTypeMiddleware)
-    app.add_middleware(RequestIdentifierMiddleware)
     app.add_middleware(ExceptionHandlerMiddleware)
+    app.add_middleware(RequestIdentifierMiddleware)
