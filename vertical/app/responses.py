@@ -1,8 +1,10 @@
 from http import HTTPStatus
-from typing import Any, Dict
+from typing import Any, Dict, Final
 
 import orjson
 from starlette.responses import JSONResponse, Response
+
+from vertical import hdrs
 
 __all__ = (
     "create_response",
@@ -13,6 +15,14 @@ __all__ = (
     "server_error",
 )
 
+HEADERS: Final = {
+    hdrs.SERVER: "UCB Vertical v0.0.1",
+    hdrs.CONTENT_TYPE: "application/json; charset=utf-8",
+    hdrs.CACHE_CONTROL: "no-cache, no-store, must-revalidate",
+    hdrs.EXPIRES: "0",
+    hdrs.PRAGMA: "no-cache",
+}
+
 
 class ORJSONResponse(JSONResponse):
 
@@ -21,7 +31,8 @@ class ORJSONResponse(JSONResponse):
 
 
 def create_response(content: Dict, http_status: int) -> Response:
-    return ORJSONResponse(content, http_status)
+    headers = HEADERS.copy()
+    return ORJSONResponse(content, http_status, headers)
 
 
 def ok(data: Dict = None, message: str = None) -> Response:  # 200
