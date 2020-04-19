@@ -47,6 +47,9 @@ flake: .venv
 
 lint: isort mypy bandit flake test
 
-all: install lint cov
+build:
+	docker build . -t vertical --pull --no-cache
+
+all: install lint cov build
 
 .DEFAULT_GOAL = all
