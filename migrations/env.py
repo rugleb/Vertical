@@ -12,7 +12,7 @@ config = context.config
 fileConfig(config.config_file_name)
 
 # url for db connection.
-url = getenv("ACCESS_DB_URL") or config.get_main_option("url")
+url = getenv("AUTH_DB_URL") or config.get_main_option("url")
 
 
 def run_migrations_offline():
