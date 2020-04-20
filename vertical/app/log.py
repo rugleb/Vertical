@@ -1,9 +1,10 @@
-import logging
+import logging.config
 import sys
 from typing import Dict, TypedDict
 
 from marshmallow import EXCLUDE, Schema, fields, post_load
 
+from .context import REQUEST_ID
 from .protocols import ResponseProtocol
 
 MISSING = "-"
@@ -39,7 +40,7 @@ class AccessLogger:
     def log(self, response: ResponseProtocol, request_time: float) -> None:
         extra = {
             "request_time": round(request_time, 4),
-            "request_id": response.request.identifier or MISSING,
+            "request_id": response.request.identifier,
             "remote_addr": response.request.remote_addr or MISSING,
             "referer": response.request.referer or MISSING,
             "user_agent": response.request.user_agent or MISSING,
@@ -124,16 +125,25 @@ CONFIG = {
             "class": "logging.StreamHandler",
             "formatter": "console",
             "stream": sys.stdout,
+            "filters": [
+                "request_id",
+            ],
         },
         "access": {
             "class": "logging.StreamHandler",
             "formatter": "access",
             "stream": sys.stdout,
+            "filters": [
+                "request_id",
+            ],
         },
         "gunicorn.access": {
             "class": "logging.StreamHandler",
             "formatter": "gunicorn.access",
             "stream": sys.stdout,
+            "filters": [
+                "request_id",
+            ],
         },
     },
     "formatters": {
@@ -143,6 +153,7 @@ CONFIG = {
                 'level="%(levelname)s" '
                 'logger="%(name)s" '
                 'pid="%(process)d" '
+                'request_id="%(request_id)s" '
                 'message="%(message)s"'
             ),
             "datefmt": "%Y.%m.%d %H:%M:%S",
@@ -171,9 +182,31 @@ CONFIG = {
                 'level="%(levelname)s" '
                 'logger="%(name)s" '
                 'pid="%(process)d" '
+                'request_id="%(request_id)s" '
                 '"%(message)s"'
             ),
             "datefmt": "%Y.%m.%d %H:%M:%S",
         },
     },
+    "filters": {
+        "request_id": {
+            "()": "vertical.app.log.RequestIDFilter",
+        },
+    },
 }
+
+
+class RequestIDFilter(logging.Filter):
+
+    def __init__(self, name: str = ""):
+        self.context_var = REQUEST_ID
+
+        super().__init__(name)
+
+    def filter(self, record: logging.LogRecord) -> int:
+        setattr(record, "request_id", self.context_var.get())
+        return super().filter(record)
+
+
+def setup_logging() -> None:
+    logging.config.dictConfig(CONFIG)

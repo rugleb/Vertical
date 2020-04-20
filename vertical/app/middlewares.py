@@ -12,6 +12,7 @@ from vertical import hdrs
 from .adapters import RequestAdapter, ResponseAdapter
 from .alchemy import SQLAlchemyStorage
 from .auth import AuthService
+from .context import REQUEST_ID
 from .log import AccessLogger, access_logger, app_logger
 from .responses import bad_request, server_error, unsupported_media_type
 from .utils import generate_request_id
@@ -27,10 +28,14 @@ class RequestIdentifierMiddleware(base.BaseHTTPMiddleware):
         handler: base.RequestResponseEndpoint,
     ) -> Response:
         request_id = generate_request_id()
+
+        token = REQUEST_ID.set(request_id)
         request.state.identifier = request_id
 
         response = await handler(request)
         response.headers[hdrs.X_REQUEST_ID] = request_id
+
+        REQUEST_ID.reset(token)
 
         return response
 

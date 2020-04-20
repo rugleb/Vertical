@@ -4,7 +4,7 @@ __all__ = ("RequestProtocol", "ResponseProtocol")
 
 
 class RequestProtocol(Protocol):
-    identifier: Optional[str]
+    identifier: str
     method: str
     path: str
     body: Optional[str]

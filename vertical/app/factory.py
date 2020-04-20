@@ -8,6 +8,7 @@ from .auth import AuthService, AuthServiceConfig
 from .endpoints import add_routes
 from .exception_handlers import add_exception_handlers
 from .hunter import PhoneService, PhoneServiceConfig
+from .log import setup_logging
 from .middlewares import add_middlewares
 
 __all__ = ("create_app", "AppConfig")
@@ -46,6 +47,8 @@ def setup_phone_service(app: Starlette, config: PhoneServiceConfig) -> None:
 
 
 def create_app(config: AppConfig) -> Starlette:
+    setup_logging()
+
     app = Starlette(debug=False)
 
     add_routes(app)
