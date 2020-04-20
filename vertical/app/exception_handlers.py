@@ -15,7 +15,7 @@ async def http_exception_handler(_: Request, e: HTTPException) -> Response:
     content = {
         "message": e.detail,
     }
-    app_logger.warning("Caught HTTP exception: %", e.detail)
+    app_logger.warning("Caught HTTP exception: %s", e.detail)
     return create_response(content, e.status_code)
 
 
@@ -24,7 +24,7 @@ async def auth_exception_handler(_: Request, e: AuthException) -> Response:
     content = {
         "message": message,
     }
-    app_logger.warning("Caught Auth exception: %", message)
+    app_logger.warning("Caught Auth exception: %s", message)
     return create_response(content, e.http_status)
 
 

@@ -106,7 +106,7 @@ class PhoneService:
             self._logger.info("No submissions were found")
             return Reliability(status=False, period=None)
 
-        self._logger.info(f"Found % submissions", len(submissions))
+        self._logger.info(f"Found %s submissions", len(submissions))
         period = Period(submissions[0].date, submissions[-1].date)
 
         groups: Dict = defaultdict(list)
@@ -115,11 +115,11 @@ class PhoneService:
             key = self.resolve_person_key(submission)
             groups[key].append(submission)
 
-        self._logger.info("Divided submissions into % groups", len(groups))
+        self._logger.info("Divided submissions into %d groups", len(groups))
 
         for submissions in groups.values():
             if submissions[0].date + self._delta < submissions[-1].date:
-                self._logger.info("Rule of % days was triggered", self._delta)
+                self._logger.info("Rule of %d days was triggered", self._delta)
                 return Reliability(status=True, period=period)
 
         self._logger.info("No rules were triggered")

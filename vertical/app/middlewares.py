@@ -64,7 +64,7 @@ class ContentTypeMiddleware(base.BaseHTTPMiddleware):
             return bad_request(message)
 
         if not content_type.startswith("application/json"):
-            app_logger.warning("Unsupported Content-Type: %", content_type)
+            app_logger.warning(f"Unsupported Content-Type: {content_type}")
             return unsupported_media_type()
 
         return await handler(request)
