@@ -57,7 +57,6 @@ class ExceptionHandlerMiddleware(base.BaseHTTPMiddleware):
 
 class ContentTypeMiddleware(base.BaseHTTPMiddleware):
 
-    # TODO: add logs
     async def dispatch(
         self,
         request: Request,
@@ -66,9 +65,12 @@ class ContentTypeMiddleware(base.BaseHTTPMiddleware):
         content_type = request.headers.get(hdrs.CONTENT_TYPE)
 
         if not content_type:
-            return bad_request("Content-Type header not recognized")
+            message = "Content-Type header not recognized"
+            app_logger.warning(message)
+            return bad_request(message)
 
         if not content_type.startswith("application/json"):
+            app_logger.warning("Unsupported Content-Type: %", content_type)
             return unsupported_media_type()
 
         return await handler(request)
@@ -76,7 +78,6 @@ class ContentTypeMiddleware(base.BaseHTTPMiddleware):
 
 class JsonParserMiddleware(base.BaseHTTPMiddleware):
 
-    # TODO: add logs
     async def dispatch(
         self,
         request: Request,
@@ -88,7 +89,9 @@ class JsonParserMiddleware(base.BaseHTTPMiddleware):
             json = orjson.loads(body)
         except ValueError:
             if body:
-                return bad_request("Could not parse request body")
+                message = "Could not parse request body"
+                app_logger.warning(message)
+                return bad_request(message)
             json = {}
 
         request.state.body = body
@@ -111,7 +114,6 @@ class AccessMiddleware(base.BaseHTTPMiddleware):
         self.ignore_paths = set(ignore_paths) if ignore_paths else set()
         self.logger = AccessLogger(access_logger)
 
-    # TODO: add logs
     async def dispatch(
         self,
         request: Request,
