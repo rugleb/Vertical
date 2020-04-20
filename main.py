@@ -33,9 +33,15 @@ config = {
             "pool_timeout": env.int("HUNTER_DB_POOL_TIMEOUT", 10),
             "strategy": env.str("HUNTER_DB_STRATEGY", "plain"),
         },
+        "logger": {
+            "name": "hunter",
+        },
     },
     "phone_service": {
         "delta": env.int("PHONE_SERVICE_DELTA_DAYS", 180),
+        "logger": {
+            "name": "hunter",
+        },
     },
 }
 

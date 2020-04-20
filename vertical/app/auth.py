@@ -1,5 +1,5 @@
-import logging
 from http import HTTPStatus
+from logging import Logger
 from typing import Dict, Optional, TypedDict
 from uuid import UUID
 
@@ -11,6 +11,7 @@ from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
 
 from vertical import hdrs
 
+from .log import LoggerConfig, LoggerSchema
 from .protocols import RequestProtocol, ResponseProtocol
 from .utils import now
 
@@ -152,10 +153,6 @@ class AsyncpgPoolConfig(TypedDict, total=False):
     max_cached_statement_lifetime: float
 
 
-class LoggerConfig(TypedDict):
-    name: str
-
-
 class AuthServiceConfig(TypedDict):
     pool: AsyncpgPoolConfig
     logger: LoggerConfig
@@ -168,17 +165,17 @@ class AuthService:
         "_logger",
     )
 
-    def __init__(self, pool: Pool, logger: logging.Logger):
+    def __init__(self, pool: Pool, logger: Logger):
         self._pool = pool
         self._logger = logger
 
     async def setup(self) -> None:
         await self._pool
-        self._logger.debug("Auth service initialized")
+        self._logger.info("Auth service initialized")
 
     async def cleanup(self) -> None:
         await self._pool.close()
-        self._logger.debug("Auth service shutdown")
+        self._logger.info("Auth service shutdown")
 
     async def ping(self) -> bool:
         return await self._pool.fetchval("SELECT TRUE;")
@@ -341,17 +338,6 @@ class AsyncpgPoolSchema(Schema):
     @post_load
     def make_pool(self, data: Dict, **kwargs) -> Pool:
         return create_pool(**data)
-
-
-class LoggerSchema(Schema):
-    name = fields.Str(required=True)
-
-    class Meta:
-        unknown = EXCLUDE
-
-    @post_load
-    def make_logger(self, data: Dict, **kwargs) -> logging.Logger:
-        return logging.getLogger(**data)
 
 
 class AuthServiceSchema(Schema):

@@ -1,5 +1,8 @@
 import logging
 import sys
+from typing import Dict, TypedDict
+
+from marshmallow import EXCLUDE, Schema, fields, post_load
 
 from .protocols import ResponseProtocol
 
@@ -8,6 +11,22 @@ MISSING = "-"
 app_logger = logging.getLogger("app")
 audit_logger = logging.getLogger("audit")
 access_logger = logging.getLogger("access")
+hunter_logger = logging.getLogger("hunter")
+
+
+class LoggerConfig(TypedDict):
+    name: str
+
+
+class LoggerSchema(Schema):
+    name = fields.Str(required=True)
+
+    class Meta:
+        unknown = EXCLUDE
+
+    @post_load
+    def make_logger(self, data: Dict, **kwargs) -> logging.Logger:
+        return logging.getLogger(**data)
 
 
 class AccessLogger:
@@ -58,6 +77,13 @@ CONFIG = {
             "propagate": False,
         },
         audit_logger.name: {
+            "level": "INFO",
+            "handlers": [
+                "console",
+            ],
+            "propagate": False,
+        },
+        hunter_logger.name: {
             "level": "INFO",
             "handlers": [
                 "console",

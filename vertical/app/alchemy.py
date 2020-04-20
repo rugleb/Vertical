@@ -1,7 +1,10 @@
+from logging import Logger
 from typing import Dict, TypedDict
 
 from marshmallow import EXCLUDE, Schema, fields, post_load
 from sqlalchemy import engine, orm
+
+from .log import LoggerConfig, LoggerSchema
 
 
 class SQLAlchemyEngineConfig(TypedDict, total=False):
@@ -24,6 +27,7 @@ class SQLAlchemyEngineConfig(TypedDict, total=False):
 
 class SQLAlchemyStorageConfig(TypedDict):
     bind: SQLAlchemyEngineConfig
+    logger: LoggerConfig
 
 
 class SQLAlchemyStorage:
@@ -31,20 +35,24 @@ class SQLAlchemyStorage:
     __slots__ = (
         "_bind",
         "_scoped_session",
+        "_logger",
     )
 
-    def __init__(self, bind: engine.Engine):
+    def __init__(self, bind: engine.Engine, logger: Logger):
         self._bind = bind
+        self._logger = logger
 
         session_factory = orm.sessionmaker(bind)
         self._scoped_session = orm.scoped_session(session_factory)
 
     def setup(self) -> None:
         self._bind.connect()
+        self._logger.info("DB initialized")
 
     def cleanup(self) -> None:
         self._scoped_session.remove()
         self._bind.dispose()
+        self._logger.info("DB disposed")
 
     def get_session(self) -> orm.Session:
         return self._scoped_session()
@@ -84,6 +92,7 @@ class SQLAlchemyEngineSchema(Schema):
 
 class SQLAlchemyStorageSchema(Schema):
     bind = fields.Nested(SQLAlchemyEngineSchema, required=True)
+    logger = fields.Nested(LoggerSchema, required=True)
 
     class Meta:
         unknown = EXCLUDE

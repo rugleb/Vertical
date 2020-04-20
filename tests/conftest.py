@@ -176,9 +176,15 @@ def config(
             "bind": {
                 "name_or_url": str(sqlalchemy_hunter_session.bind.url),
             },
+            "logger": {
+                "name": "hunter",
+            },
         },
         "phone_service": {
             "delta": 180,
+            "logger": {
+                "name": "hunter",
+            },
         },
     }
 

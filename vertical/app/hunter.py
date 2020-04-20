@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import date, timedelta
+from logging import Logger
 from typing import Dict, List, Optional, Protocol, TypedDict
 
 import attr
@@ -7,6 +8,8 @@ from marshmallow import EXCLUDE, Schema, fields, post_load
 from pygost import gost341194
 from sqlalchemy import DATE, VARCHAR, Column, orm
 from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
+
+from .log import LoggerConfig, LoggerSchema
 
 DATE_FORMAT = "%Y.%m.%d"
 
@@ -65,30 +68,32 @@ class Phone(Protocol):
 
 class PhoneServiceConfig(TypedDict):
     delta: int
+    logger: LoggerConfig
 
 
-# TODO: add logs
 class PhoneService:
 
     __slots__ = (
-        "delta",
-        "hash_factory",
-        "person_key_resolver",
+        "_delta",
+        "_logger",
+        "_hash_factory",
+        "_person_key_resolver",
     )
 
-    def __init__(self, delta: timedelta):
-        self.delta = delta
+    def __init__(self, delta: timedelta, logger: Logger):
+        self._delta = delta
+        self._logger = logger
 
-        self.hash_factory = make_hash
-        self.person_key_resolver = resolve_person_key
+        self._hash_factory = make_hash
+        self._person_key_resolver = resolve_person_key
 
     def make_hash(self, data: str) -> str:
-        return self.hash_factory(data)
+        return self._hash_factory(data)
 
     def resolve_person_key(self, submission: Submission) -> str:
-        return self.person_key_resolver(submission)
+        return self._person_key_resolver(submission)
 
-    def verify(self, session: orm.Session, phone: Phone) -> Reliability:
+    def verify(self, phone: Phone, session: orm.Session) -> Reliability:
         phone_number = phone.number
         phone_number_hash = self.make_hash(phone_number)
 
@@ -98,8 +103,10 @@ class PhoneService:
             .all()
 
         if not submissions:
+            self._logger.info("No submissions were found")
             return Reliability(status=False, period=None)
 
+        self._logger.info(f"Found % submissions", len(submissions))
         period = Period(submissions[0].date, submissions[-1].date)
 
         groups: Dict = defaultdict(list)
@@ -108,10 +115,14 @@ class PhoneService:
             key = self.resolve_person_key(submission)
             groups[key].append(submission)
 
+        self._logger.info("Divided submissions into % groups", len(groups))
+
         for submissions in groups.values():
-            if submissions[0].date + self.delta < submissions[-1].date:
+            if submissions[0].date + self._delta < submissions[-1].date:
+                self._logger.info("Rule of % days was triggered", self._delta)
                 return Reliability(status=True, period=period)
 
+        self._logger.info("No rules were triggered")
         return Reliability(status=False, period=period)
 
     @classmethod
@@ -121,6 +132,7 @@ class PhoneService:
 
 class PhoneServiceSchema(Schema):
     delta = fields.TimeDelta("days", required=True)
+    logger = fields.Nested(LoggerSchema, required=True)
 
     class Meta:
         unknown = EXCLUDE
