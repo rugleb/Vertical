@@ -1,11 +1,15 @@
 VENV := .venv
 COVERAGE := .coverage
+BUILD := .build
 
 export PATH := $(VENV)/bin:$(PATH)
 
 MIGRATIONS := migrations
 VERTICAL := vertical
 TESTS := tests
+
+VERSION := latest
+LOCAL_IMAGE_TAG := $(VERTICAL):$(VERSION)
 
 .venv:
 	poetry env use 3.8
@@ -14,11 +18,15 @@ TESTS := tests
 .coverage:
 	mkdir -p $(COVERAGE)
 
+.build:
+	mkdir -p $(BUILD)
+
 clean:
 	rm -rf .mypy_cache
 	rm -rf .pytest_cache
 	rm -rf $(COVERAGE)
 	rm -rf $(VENV)
+	rm -rf $(BUILD)
 
 install: .venv
 	poetry install --no-root
@@ -47,8 +55,9 @@ flake: .venv
 
 lint: isort mypy bandit flake test
 
-build:
-	docker build . -t vertical:latest --pull --no-cache
+build: .build
+	docker build . -t $(LOCAL_IMAGE_TAG) --pull --no-cache
+	docker save -o $(BUILD)/$(LOCAL_IMAGE_TAG).tar $(LOCAL_IMAGE_TAG)
 
 all: install lint cov build
 

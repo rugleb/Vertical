@@ -1,4 +1,4 @@
-FROM python:3.8-buster as builder
+FROM python:3.8-buster as build
 
 COPY . .
 
@@ -11,7 +11,7 @@ FROM python:3.8-slim-buster
 
 WORKDIR /usr/src/app
 
-COPY --from=builder dist dist
+COPY --from=build dist dist
 COPY . .
 
 RUN pip install --no-cache-dir dist/*.whl && \
