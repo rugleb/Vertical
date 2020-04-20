@@ -22,7 +22,7 @@ class RequestAdapter(RequestProtocol):
     )
 
     def __init__(self, request: Request):
-        self.identifier = request.headers.get(hdrs.X_REQUEST_ID)
+        self.identifier = request.state.identifier
 
         self.method = request.method
         self.path = request.url.path

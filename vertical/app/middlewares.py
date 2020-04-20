@@ -14,7 +14,7 @@ from .alchemy import SQLAlchemyStorage
 from .auth import AuthService
 from .log import AccessLogger, access_logger, app_logger
 from .responses import bad_request, server_error, unsupported_media_type
-from .utils import is_valid_uuid
+from .utils import generate_request_id
 
 __all__ = ("add_middlewares", )
 
@@ -26,14 +26,8 @@ class RequestIdentifierMiddleware(base.BaseHTTPMiddleware):
         request: Request,
         handler: base.RequestResponseEndpoint,
     ) -> Response:
-        # TODO: We should generate X-Request-Id
-        request_id = request.headers.get(hdrs.X_REQUEST_ID)
-
-        if not request_id:
-            return bad_request("X-Request-Id header not recognized")
-
-        if not is_valid_uuid(request_id):
-            return bad_request("X-Request-Id header must be in UUID format")
+        request_id = generate_request_id()
+        request.state.identifier = request_id
 
         response = await handler(request)
         response.headers[hdrs.X_REQUEST_ID] = request_id

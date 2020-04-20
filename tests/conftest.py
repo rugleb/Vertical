@@ -15,16 +15,12 @@ from alembic.config import Config
 from sqlalchemy import engine, exc, orm
 from starlette.testclient import TestClient
 
-from vertical import AppConfig, create_app, hdrs
-from vertical.app import auth, hunter
-from vertical.app.utils import unused_port
-
-LOCALHOST = "127.0.0.1"
+from vertical.app import AppConfig, auth, create_app, hunter, utils
 
 HERE = os.path.dirname(__file__)
 ROOT = os.path.dirname(HERE)
 
-DEFAULT_POSTGRES_HOST = LOCALHOST
+DEFAULT_POSTGRES_HOST = utils.LOCALHOST
 DEFAULT_POSTGRES_PORT = 5432
 DEFAULT_POSTGRES_USER = "postgres"
 DEFAULT_POSTGRES_PASSWORD = "postgres"
@@ -114,8 +110,8 @@ def run_migrations(path: str, bind: engine.Engine) -> Iterator:
 
 @pytest.fixture(scope="session")
 def sqlalchemy_auth_bind() -> Iterator:
-    host = LOCALHOST
-    port = unused_port(host)
+    host = utils.LOCALHOST
+    port = utils.unused_port(host)
     with postgres_server(port=port) as url:
         with sqlalchemy_bind(url) as bind:
             yield bind
@@ -138,8 +134,8 @@ def sqlalchemy_auth_session(sqlalchemy_auth_bind: engine.Engine) -> Iterator:
 
 @pytest.fixture(scope="session")
 def sqlalchemy_hunter_bind() -> Iterator:
-    host = LOCALHOST
-    port = unused_port(host)
+    host = utils.LOCALHOST
+    port = utils.unused_port(host)
     with postgres_server(port=port) as url:
         with sqlalchemy_bind(url) as bind:
             yield bind
@@ -196,22 +192,14 @@ def client(config: AppConfig) -> Iterator:
         yield client
 
 
-def create_uuid() -> str:
+def generate_uuid() -> str:
     uuid_obj = uuid.uuid4()
     return str(uuid_obj)
 
 
 @pytest.fixture
-def create_request_id() -> Callable:
-    return create_uuid
-
-
-@pytest.fixture
-def headers(create_request_id: Callable) -> Dict:
-    return {
-        hdrs.X_REQUEST_ID: create_request_id(),
-        hdrs.CONTENT_TYPE: "application/json",
-    }
+def request_id_generator() -> Callable:
+    return utils.generate_request_id
 
 
 class AuthFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -225,7 +213,7 @@ class ClientFactory(AuthFactory):
     class Meta:
         model = auth.Client
 
-    id = factory.LazyFunction(create_uuid)
+    id = factory.LazyFunction(generate_uuid)
     name = factory.Faker("name")
     created_at = factory.LazyFunction(datetime.now)
 
@@ -234,7 +222,7 @@ class ContractFactory(AuthFactory):
     class Meta:
         model = auth.Contract
 
-    id = factory.LazyFunction(create_uuid)
+    id = factory.LazyFunction(generate_uuid)
     client_id = None
     token = factory.LazyFunction(secrets.token_hex)
     created_at = factory.LazyFunction(datetime.now)

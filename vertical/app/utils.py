@@ -6,6 +6,7 @@ __all__ = (
     "now",
     "is_valid_uuid",
     "unused_port",
+    "generate_request_id",
 )
 
 LOCALHOST = "127.0.0.1"
@@ -28,3 +29,7 @@ def unused_port(host: str = LOCALHOST) -> int:
         address = (host, 0)
         s.bind(address)
         return s.getsockname()[1]
+
+
+def generate_request_id() -> str:
+    return str(uuid.uuid4())

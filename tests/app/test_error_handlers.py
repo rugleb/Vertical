@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Callable, NoReturn
+from typing import NoReturn
 
 from sqlalchemy.orm import Session
 from starlette.applications import Starlette
@@ -7,7 +7,7 @@ from starlette.requests import Request
 from starlette.testclient import TestClient
 
 from vertical import hdrs
-from vertical.app import auth
+from vertical.app import auth, utils
 
 APPLICATION_JSON = "application/json"
 
@@ -18,7 +18,6 @@ async def error_endpoint(_: Request) -> NoReturn:
 
 def test_default_error_handler(
         client: TestClient,
-        create_request_id: Callable,
         sqlalchemy_auth_session: Session,
 ) -> None:
     app: Starlette = client.app  # type: ignore
@@ -26,11 +25,8 @@ def test_default_error_handler(
     path = "/error"
     app.add_route(path, error_endpoint)
 
-    request_id = create_request_id()
-
     headers = {
         hdrs.CONTENT_TYPE: APPLICATION_JSON,
-        hdrs.X_REQUEST_ID: request_id,
     }
 
     r = client.get(path, headers=headers)
@@ -42,7 +38,8 @@ def test_default_error_handler(
         "message": "Internal server error",
     }
 
-    assert r.headers[hdrs.X_REQUEST_ID] == request_id
+    request_id = r.headers[hdrs.X_REQUEST_ID]
+    assert utils.is_valid_uuid(request_id)
 
     assert sqlalchemy_auth_session.query(auth.Response).first() is None
 
@@ -58,14 +55,10 @@ def test_default_error_handler(
 
 def test_http_exception_handler(
         client: TestClient,
-        create_request_id: Callable,
         sqlalchemy_auth_session: Session,
 ) -> None:
-    request_id = create_request_id()
-
     headers = {
         hdrs.CONTENT_TYPE: APPLICATION_JSON,
-        hdrs.X_REQUEST_ID: request_id,
     }
 
     r = client.get("undefined", headers=headers)
@@ -77,7 +70,8 @@ def test_http_exception_handler(
         "message": "Not Found",
     }
 
-    assert r.headers[hdrs.X_REQUEST_ID] == request_id
+    request_id = r.headers[hdrs.X_REQUEST_ID]
+    assert utils.is_valid_uuid(request_id)
 
     response = sqlalchemy_auth_session.query(auth.Response).first()
     assert isinstance(response, auth.Response)

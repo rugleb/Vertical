@@ -9,8 +9,7 @@ from starlette.applications import Starlette
 from starlette.testclient import TestClient
 
 from vertical import hdrs
-from vertical.app import auth, hunter
-from vertical.app.auth import Contract, Request, Response
+from vertical.app import auth, hunter, utils
 
 APPLICATION_JSON = "application/json"
 
@@ -27,13 +26,9 @@ class TestPingEndpoint:
     def test_that_response_is_pong(
             self,
             client: TestClient,
-            create_request_id: Callable,
             sqlalchemy_auth_session: Session,
     ) -> None:
-        request_id = create_request_id()
-
         headers = {
-            hdrs.X_REQUEST_ID: request_id,
             hdrs.CONTENT_TYPE: APPLICATION_JSON,
         }
 
@@ -47,10 +42,11 @@ class TestPingEndpoint:
             "data": {},
         }
 
-        assert r.headers[hdrs.X_REQUEST_ID] == request_id
+        request_id = r.headers[hdrs.X_REQUEST_ID]
+        assert utils.is_valid_uuid(request_id)
 
-        assert sqlalchemy_auth_session.query(Request).first() is None
-        assert sqlalchemy_auth_session.query(Response).first() is None
+        assert sqlalchemy_auth_session.query(auth.Request).first() is None
+        assert sqlalchemy_auth_session.query(auth.Response).first() is None
 
 
 class TestPhoneReliabilityEndpoint:
@@ -59,13 +55,9 @@ class TestPhoneReliabilityEndpoint:
     def test_request_without_authorization_header(
             self,
             client: TestClient,
-            create_request_id: Callable,
             sqlalchemy_auth_session: Session,
     ) -> None:
-        request_id = create_request_id()
-
         headers = {
-            hdrs.X_REQUEST_ID: request_id,
             hdrs.CONTENT_TYPE: APPLICATION_JSON,
         }
 
@@ -78,10 +70,11 @@ class TestPhoneReliabilityEndpoint:
             "message": "Authorization header not recognized",
         }
 
-        assert r.headers[hdrs.X_REQUEST_ID] == request_id
+        request_id = r.headers[hdrs.X_REQUEST_ID]
+        assert utils.is_valid_uuid(request_id)
 
-        response = sqlalchemy_auth_session.query(Response).first()
-        assert isinstance(response, Response)
+        response = sqlalchemy_auth_session.query(auth.Response).first()
+        assert isinstance(response, auth.Response)
 
         assert response.id == request_id
         assert response.body == r.json()
@@ -96,13 +89,9 @@ class TestPhoneReliabilityEndpoint:
     def test_request_with_invalid_auth_scheme(
             self,
             client: TestClient,
-            create_request_id: Callable,
             sqlalchemy_auth_session: Session,
     ) -> None:
-        request_id = create_request_id()
-
         headers = {
-            hdrs.X_REQUEST_ID: request_id,
             hdrs.CONTENT_TYPE: APPLICATION_JSON,
             hdrs.AUTHORIZATION: hdrs.BEARER,
         }
@@ -116,10 +105,11 @@ class TestPhoneReliabilityEndpoint:
             "message": "Invalid authorization scheme",
         }
 
-        assert r.headers[hdrs.X_REQUEST_ID] == request_id
+        request_id = r.headers[hdrs.X_REQUEST_ID]
+        assert utils.is_valid_uuid(request_id)
 
-        response = sqlalchemy_auth_session.query(Response).first()
-        assert isinstance(response, Response)
+        response = sqlalchemy_auth_session.query(auth.Response).first()
+        assert isinstance(response, auth.Response)
 
         assert response.id == request_id
         assert response.body == r.json()
@@ -134,16 +124,12 @@ class TestPhoneReliabilityEndpoint:
     def test_request_with_invalid_token_type(
             self,
             client: TestClient,
-            create_request_id: Callable,
             allowed_contract: auth.Contract,
             sqlalchemy_auth_session: Session,
     ) -> None:
         token = allowed_contract.token
 
-        request_id = create_request_id()
-
         headers = {
-            hdrs.X_REQUEST_ID: request_id,
             hdrs.CONTENT_TYPE: APPLICATION_JSON,
             hdrs.AUTHORIZATION: f"{hdrs.BASIC} {token}"
         }
@@ -157,10 +143,11 @@ class TestPhoneReliabilityEndpoint:
             "message": "Expected Bearer token type",
         }
 
-        assert r.headers[hdrs.X_REQUEST_ID] == request_id
+        request_id = r.headers[hdrs.X_REQUEST_ID]
+        assert utils.is_valid_uuid(request_id)
 
-        response = sqlalchemy_auth_session.query(Response).first()
-        assert isinstance(response, Response)
+        response = sqlalchemy_auth_session.query(auth.Response).first()
+        assert isinstance(response, auth.Response)
 
         assert response.id == request_id
         assert response.body == r.json()
@@ -175,13 +162,9 @@ class TestPhoneReliabilityEndpoint:
     def test_request_with_invalid_access_token(
             self,
             client: TestClient,
-            create_request_id: Callable,
             sqlalchemy_auth_session: Session,
     ) -> None:
-        request_id = create_request_id()
-
         headers = {
-            hdrs.X_REQUEST_ID: request_id,
             hdrs.CONTENT_TYPE: APPLICATION_JSON,
             hdrs.AUTHORIZATION: f"{hdrs.BEARER} TOKEN"
         }
@@ -195,10 +178,11 @@ class TestPhoneReliabilityEndpoint:
             "message": "Invalid access token",
         }
 
-        assert r.headers[hdrs.X_REQUEST_ID] == request_id
+        request_id = r.headers[hdrs.X_REQUEST_ID]
+        assert utils.is_valid_uuid(request_id)
 
-        response = sqlalchemy_auth_session.query(Response).first()
-        assert isinstance(response, Response)
+        response = sqlalchemy_auth_session.query(auth.Response).first()
+        assert isinstance(response, auth.Response)
 
         assert response.id == request_id
         assert response.body == r.json()
@@ -213,16 +197,12 @@ class TestPhoneReliabilityEndpoint:
     def test_request_with_expired_contract(
             self,
             client: TestClient,
-            create_request_id: Callable,
             sqlalchemy_auth_session: Session,
             expired_contract: auth.Contract,
     ) -> None:
         token = expired_contract.token
 
-        request_id = create_request_id()
-
         headers = {
-            hdrs.X_REQUEST_ID: request_id,
             hdrs.CONTENT_TYPE: APPLICATION_JSON,
             hdrs.AUTHORIZATION: f"{hdrs.BEARER} {token}"
         }
@@ -238,10 +218,11 @@ class TestPhoneReliabilityEndpoint:
             "message": message,
         }
 
-        assert r.headers[hdrs.X_REQUEST_ID] == request_id
+        request_id = r.headers[hdrs.X_REQUEST_ID]
+        assert utils.is_valid_uuid(request_id)
 
-        response = sqlalchemy_auth_session.query(Response).first()
-        assert isinstance(response, Response)
+        response = sqlalchemy_auth_session.query(auth.Response).first()
+        assert isinstance(response, auth.Response)
 
         assert response.id == request_id
         assert response.body == r.json()
@@ -256,16 +237,12 @@ class TestPhoneReliabilityEndpoint:
     def test_request_with_revoked_contract(
             self,
             client: TestClient,
-            create_request_id: Callable,
             sqlalchemy_auth_session: Session,
             revoked_contract: auth.Contract,
     ) -> None:
         token = revoked_contract.token
 
-        request_id = create_request_id()
-
         headers = {
-            hdrs.X_REQUEST_ID: request_id,
             hdrs.CONTENT_TYPE: APPLICATION_JSON,
             hdrs.AUTHORIZATION: f"{hdrs.BEARER} {token}"
         }
@@ -281,10 +258,11 @@ class TestPhoneReliabilityEndpoint:
             "message": message,
         }
 
-        assert r.headers[hdrs.X_REQUEST_ID] == request_id
+        request_id = r.headers[hdrs.X_REQUEST_ID]
+        assert utils.is_valid_uuid(request_id)
 
-        response = sqlalchemy_auth_session.query(Response).first()
-        assert isinstance(response, Response)
+        response = sqlalchemy_auth_session.query(auth.Response).first()
+        assert isinstance(response, auth.Response)
 
         assert response.id == request_id
         assert response.body == r.json()
@@ -303,17 +281,13 @@ class TestPhoneReliabilityEndpoint:
     def test_request_without_invalid_json(
             self,
             client: TestClient,
-            create_request_id: Callable,
             sqlalchemy_auth_session: Session,
-            allowed_contract: Contract,
+            allowed_contract: auth.Contract,
             json: Dict,
     ) -> None:
         token = allowed_contract.token
 
-        request_id = create_request_id()
-
         headers = {
-            hdrs.X_REQUEST_ID: request_id,
             hdrs.CONTENT_TYPE: APPLICATION_JSON,
             hdrs.AUTHORIZATION: f"{hdrs.BEARER} {token}"
         }
@@ -332,10 +306,11 @@ class TestPhoneReliabilityEndpoint:
             },
         }
 
-        assert r.headers[hdrs.X_REQUEST_ID] == request_id
+        request_id = r.headers[hdrs.X_REQUEST_ID]
+        assert utils.is_valid_uuid(request_id)
 
-        response = sqlalchemy_auth_session.query(Response).first()
-        assert isinstance(response, Response)
+        response = sqlalchemy_auth_session.query(auth.Response).first()
+        assert isinstance(response, auth.Response)
 
         assert response.id == request_id
         assert response.body == r.json()
@@ -357,17 +332,13 @@ class TestPhoneReliabilityEndpoint:
     def test_request_with_invalid_phone_number_format(
             self,
             client: TestClient,
-            create_request_id: Callable,
             sqlalchemy_auth_session: Session,
-            allowed_contract: Contract,
+            allowed_contract: auth.Contract,
             number: str,
     ) -> None:
         token = allowed_contract.token
 
-        request_id = create_request_id()
-
         headers = {
-            hdrs.X_REQUEST_ID: request_id,
             hdrs.CONTENT_TYPE: APPLICATION_JSON,
             hdrs.AUTHORIZATION: f"{hdrs.BEARER} {token}"
         }
@@ -390,10 +361,11 @@ class TestPhoneReliabilityEndpoint:
             },
         }
 
-        assert r.headers[hdrs.X_REQUEST_ID] == request_id
+        request_id = r.headers[hdrs.X_REQUEST_ID]
+        assert utils.is_valid_uuid(request_id)
 
-        response = sqlalchemy_auth_session.query(Response).first()
-        assert isinstance(response, Response)
+        response = sqlalchemy_auth_session.query(auth.Response).first()
+        assert isinstance(response, auth.Response)
 
         assert response.id == request_id
         assert response.body == r.json()
@@ -408,17 +380,13 @@ class TestPhoneReliabilityEndpoint:
     def test_request_with_undefined_phone_number(
             self,
             client: TestClient,
-            create_request_id: Callable,
             sqlalchemy_auth_session: Session,
-            allowed_contract: Contract,
+            allowed_contract: auth.Contract,
             phone_number_generator: Callable,
     ) -> None:
         token = allowed_contract.token
 
-        request_id = create_request_id()
-
         headers = {
-            hdrs.X_REQUEST_ID: request_id,
             hdrs.CONTENT_TYPE: APPLICATION_JSON,
             hdrs.AUTHORIZATION: f"{hdrs.BEARER} {token}"
         }
@@ -440,10 +408,11 @@ class TestPhoneReliabilityEndpoint:
             },
         }
 
-        assert r.headers[hdrs.X_REQUEST_ID] == request_id
+        request_id = r.headers[hdrs.X_REQUEST_ID]
+        assert utils.is_valid_uuid(request_id)
 
-        response = sqlalchemy_auth_session.query(Response).first()
-        assert isinstance(response, Response)
+        response = sqlalchemy_auth_session.query(auth.Response).first()
+        assert isinstance(response, auth.Response)
 
         assert response.id == request_id
         assert response.body == r.json()
@@ -459,8 +428,7 @@ class TestPhoneReliabilityEndpoint:
             self,
             client: TestClient,
             sqlalchemy_auth_session: Session,
-            allowed_contract: Contract,
-            create_request_id: Callable,
+            allowed_contract: auth.Contract,
             phone_number_generator: Callable,
             submission_factory: Factory,
     ) -> None:
@@ -491,10 +459,7 @@ class TestPhoneReliabilityEndpoint:
 
         token = allowed_contract.token
 
-        request_id = create_request_id()
-
         headers = {
-            hdrs.X_REQUEST_ID: request_id,
             hdrs.CONTENT_TYPE: APPLICATION_JSON,
             hdrs.AUTHORIZATION: f"{hdrs.BEARER} {token}"
         }
@@ -519,10 +484,11 @@ class TestPhoneReliabilityEndpoint:
             },
         }
 
-        assert r.headers[hdrs.X_REQUEST_ID] == request_id
+        request_id = r.headers[hdrs.X_REQUEST_ID]
+        assert utils.is_valid_uuid(request_id)
 
-        response = sqlalchemy_auth_session.query(Response).first()
-        assert isinstance(response, Response)
+        response = sqlalchemy_auth_session.query(auth.Response).first()
+        assert isinstance(response, auth.Response)
 
         assert response.id == request_id
         assert response.body == r.json()
@@ -538,8 +504,7 @@ class TestPhoneReliabilityEndpoint:
             self,
             client: TestClient,
             sqlalchemy_auth_session: Session,
-            allowed_contract: Contract,
-            create_request_id: Callable,
+            allowed_contract: auth.Contract,
             phone_number_generator: Callable,
             submission_factory: Factory,
     ) -> None:
@@ -570,10 +535,7 @@ class TestPhoneReliabilityEndpoint:
 
         token = allowed_contract.token
 
-        request_id = create_request_id()
-
         headers = {
-            hdrs.X_REQUEST_ID: request_id,
             hdrs.CONTENT_TYPE: APPLICATION_JSON,
             hdrs.AUTHORIZATION: f"{hdrs.BEARER} {token}"
         }
@@ -598,10 +560,11 @@ class TestPhoneReliabilityEndpoint:
             },
         }
 
-        assert r.headers[hdrs.X_REQUEST_ID] == request_id
+        request_id = r.headers[hdrs.X_REQUEST_ID]
+        assert utils.is_valid_uuid(request_id)
 
-        response = sqlalchemy_auth_session.query(Response).first()
-        assert isinstance(response, Response)
+        response = sqlalchemy_auth_session.query(auth.Response).first()
+        assert isinstance(response, auth.Response)
 
         assert response.id == request_id
         assert response.body == r.json()

@@ -1,89 +1,12 @@
 from http import HTTPStatus
-from typing import Callable, Dict
 
-import pytest
 from sqlalchemy.orm import Session
 from starlette.testclient import TestClient
 
 from vertical import hdrs
-from vertical.app.auth import Request, Response
+from vertical.app import auth, utils
 
 APPLICATION_JSON = "application/json"
-
-
-class TestRequestIdentifierMiddleware:
-    path = "/ping"
-
-    def test_request_without_request_id(
-            self,
-            client: TestClient,
-            sqlalchemy_auth_session: Session,
-    ) -> None:
-        r = client.get(self.path)
-
-        http_status = HTTPStatus.BAD_REQUEST
-        assert r.status_code == http_status
-
-        assert r.json() == {
-            "message": "X-Request-Id header not recognized",
-        }
-
-        assert hdrs.X_REQUEST_ID not in r.headers
-
-        assert sqlalchemy_auth_session.query(Request).first() is None
-        assert sqlalchemy_auth_session.query(Response).first() is None
-
-    @pytest.mark.parametrize("request_id", [
-        "a8098c1af86e11da3d1a00112444be1e",
-        "a8098c1af86e11da3d1a0",
-        "uuid",
-    ])
-    def test_request_with_invalid_request_id_format(
-            self,
-            client: TestClient,
-            sqlalchemy_auth_session: Session,
-            request_id: str,
-    ) -> None:
-        headers = {
-            hdrs.X_REQUEST_ID: request_id,
-        }
-
-        r = client.get(self.path, headers=headers)
-
-        http_status = HTTPStatus.BAD_REQUEST
-        assert r.status_code == http_status
-
-        assert r.json() == {
-            "message": "X-Request-Id header must be in UUID format",
-        }
-
-        assert hdrs.X_REQUEST_ID not in r.headers
-
-        assert sqlalchemy_auth_session.query(Request).first() is None
-        assert sqlalchemy_auth_session.query(Response).first() is None
-
-    def test_request_with_valid_request_id_format(
-            self,
-            client: TestClient,
-            sqlalchemy_auth_session: Session,
-            create_request_id: Callable,
-    ) -> None:
-        request_id = create_request_id()
-
-        headers = {
-            hdrs.X_REQUEST_ID: request_id,
-            hdrs.CONTENT_TYPE: APPLICATION_JSON,
-        }
-
-        r = client.get(self.path, headers=headers)
-
-        http_status = HTTPStatus.OK
-        assert r.status_code == http_status
-
-        assert r.headers[hdrs.X_REQUEST_ID] == request_id
-
-        assert sqlalchemy_auth_session.query(Response).first() is None
-        assert sqlalchemy_auth_session.query(Request).first() is None
 
 
 class TestContentTypeMiddleware:
@@ -92,16 +15,9 @@ class TestContentTypeMiddleware:
     def test_request_without_content_type(
             self,
             client: TestClient,
-            create_request_id: Callable,
             sqlalchemy_auth_session: Session,
     ) -> None:
-        request_id = create_request_id()
-
-        headers = {
-            hdrs.X_REQUEST_ID: request_id,
-        }
-
-        response = client.get(self.url, headers=headers)
+        response = client.get(self.url)
 
         http_status = HTTPStatus.BAD_REQUEST
         assert response.status_code == http_status
@@ -110,19 +26,18 @@ class TestContentTypeMiddleware:
             "message": "Content-Type header not recognized",
         }
 
-        assert sqlalchemy_auth_session.query(Response).first() is None
-        assert sqlalchemy_auth_session.query(Request).first() is None
+        request_id = response.headers[hdrs.X_REQUEST_ID]
+        assert utils.is_valid_uuid(request_id)
+
+        assert sqlalchemy_auth_session.query(auth.Request).first() is None
+        assert sqlalchemy_auth_session.query(auth.Response).first() is None
 
     def test_request_without_invalid_content_type(
             self,
             client: TestClient,
-            create_request_id: Callable,
             sqlalchemy_auth_session: Session,
     ) -> None:
-        request_id = create_request_id()
-
         headers = {
-            hdrs.X_REQUEST_ID: request_id,
             hdrs.CONTENT_TYPE: "application/html",
         }
 
@@ -135,8 +50,11 @@ class TestContentTypeMiddleware:
             "message": "Unsupported media type",
         }
 
-        assert sqlalchemy_auth_session.query(Response).first() is None
-        assert sqlalchemy_auth_session.query(Request).first() is None
+        request_id = response.headers[hdrs.X_REQUEST_ID]
+        assert utils.is_valid_uuid(request_id)
+
+        assert sqlalchemy_auth_session.query(auth.Request).first() is None
+        assert sqlalchemy_auth_session.query(auth.Response).first() is None
 
 
 class TestJsonDecoderMiddleware:
@@ -145,10 +63,13 @@ class TestJsonDecoderMiddleware:
     def test_request_without_body(
             self,
             client: TestClient,
-            headers: Dict,
             sqlalchemy_auth_session: Session,
     ) -> None:
-        response = client.post(self.url, headers=headers)
+        headers = {
+            hdrs.CONTENT_TYPE: APPLICATION_JSON,
+        }
+
+        response = client.get(self.url, headers=headers)
 
         http_status = HTTPStatus.OK
         assert response.status_code == http_status
@@ -158,15 +79,21 @@ class TestJsonDecoderMiddleware:
             "data": {},
         }
 
-        assert sqlalchemy_auth_session.query(Response).first() is None
-        assert sqlalchemy_auth_session.query(Request).first() is None
+        request_id = response.headers[hdrs.X_REQUEST_ID]
+        assert utils.is_valid_uuid(request_id)
+
+        assert sqlalchemy_auth_session.query(auth.Request).first() is None
+        assert sqlalchemy_auth_session.query(auth.Response).first() is None
 
     def test_request_with_invalid_json_body(
             self,
             client: TestClient,
-            headers: Dict,
             sqlalchemy_auth_session: Session,
     ) -> None:
+        headers = {
+            hdrs.CONTENT_TYPE: APPLICATION_JSON,
+        }
+
         data = "{key:value}"
         response = client.post(self.url, headers=headers, data=data)
 
@@ -177,5 +104,8 @@ class TestJsonDecoderMiddleware:
             "message": "Could not parse request body",
         }
 
-        assert sqlalchemy_auth_session.query(Response).first() is None
-        assert sqlalchemy_auth_session.query(Request).first() is None
+        request_id = response.headers[hdrs.X_REQUEST_ID]
+        assert utils.is_valid_uuid(request_id)
+
+        assert sqlalchemy_auth_session.query(auth.Request).first() is None
+        assert sqlalchemy_auth_session.query(auth.Response).first() is None
