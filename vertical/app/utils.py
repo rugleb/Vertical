@@ -19,7 +19,7 @@ def now() -> datetime:
 def is_valid_uuid(uuid_string: str, version: int = 4) -> bool:
     try:
         uuid_obj = uuid.UUID(uuid_string, version=version)
-    except ValueError:
+    except ValueError:  # pragma: no cover
         return False
     return str(uuid_obj) == uuid_string
 
