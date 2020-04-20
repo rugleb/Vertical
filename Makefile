@@ -11,6 +11,9 @@ TESTS := tests
 VERSION := latest
 LOCAL_IMAGE_TAG := $(VERTICAL):$(VERSION)
 
+AZURE_IMAGE_TAG := altdata.azurecr.io/vertical/$(LOCAL_IMAGE_TAG)
+HARBOR_IMAGE_TAG := altdata.azurecr.io/vertical/$(LOCAL_IMAGE_TAG)
+
 .venv:
 	poetry env use 3.8
 	poetry check
@@ -58,6 +61,12 @@ lint: isort mypy bandit flake test
 build: .build
 	docker build . -t $(LOCAL_IMAGE_TAG) --pull --no-cache
 	docker save -o $(BUILD)/$(LOCAL_IMAGE_TAG).tar $(LOCAL_IMAGE_TAG)
+
+deploy: build
+	docker tag $(LOCAL_IMAGE_TAG) $(AZURE_IMAGE_TAG)
+	docker push $(AZURE_IMAGE_TAG)
+	docker tag $(LOCAL_IMAGE_TAG) $(HARBOR_IMAGE_TAG)
+	docker push $(HARBOR_IMAGE_TAG)
 
 all: install lint cov build
 
