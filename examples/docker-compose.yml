@@ -13,6 +13,7 @@ services:
       - HUNTER_DB_URL=postgresql://hunter:hunter@hunter_db:5432/hunter
     depends_on:
       - vertical_db
+      - vertical_migrations
       - hunter_db
     networks:
       - vertical_network
@@ -23,7 +24,7 @@ services:
     environment:
       - AUTH_DB_URL=postgresql://vertical:vertical@vertical_db:5432/vertical
     depends_on:
-      - vertical_api
+      - vertical_db
     command: ["alembic", "upgrade", "head"]
     networks:
       - vertical_network
