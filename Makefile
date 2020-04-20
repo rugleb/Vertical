@@ -32,7 +32,7 @@ clean:
 	rm -rf $(BUILD)
 
 install: .venv
-	poetry install --no-root
+	poetry install
 
 test: .venv
 	pytest

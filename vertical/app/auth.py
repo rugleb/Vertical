@@ -6,14 +6,14 @@ from uuid import UUID
 from asyncpg.pool import Pool, create_pool
 from marshmallow import EXCLUDE, Schema, fields, post_load
 from sqlalchemy import Column, ForeignKey, orm
-from sqlalchemy.dialects import postgresql as pgsql
+from sqlalchemy.dialects import postgresql as pg
 from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
 
 from vertical import hdrs
 
 from .log import LoggerConfig, LoggerSchema
 from .protocols import RequestProtocol, ResponseProtocol
-from .utils import now
+from .utils import make_uuid, now
 
 DATETIME_FORMAT = "%Y.%m.%d %H:%M:%S"
 
@@ -24,20 +24,20 @@ Model: DeclarativeMeta = declarative_base()
 class Client(Model):
     __tablename__ = "clients"
 
-    id = Column("client_id", pgsql.UUID, primary_key=True)
-    name = Column(pgsql.VARCHAR)
-    created_at = Column(pgsql.TIMESTAMP)
+    id = Column("client_id", pg.UUID, primary_key=True, default=make_uuid)
+    name = Column(pg.VARCHAR)
+    created_at = Column(pg.TIMESTAMP, default=now)
 
 
 class Contract(Model):
     __tablename__ = "contracts"
 
-    id = Column("contract_id", pgsql.UUID, primary_key=True)
-    client_id = Column(pgsql.UUID, ForeignKey(Client.id))
-    token = Column(pgsql.VARCHAR)
-    created_at = Column(pgsql.TIMESTAMP)
-    expired_at = Column(pgsql.TIMESTAMP)
-    revoked_at = Column(pgsql.TIMESTAMP)
+    id = Column("contract_id", pg.UUID, primary_key=True, default=make_uuid)
+    client_id = Column(pg.UUID, ForeignKey(Client.id))
+    token = Column(pg.VARCHAR)
+    created_at = Column(pg.TIMESTAMP, default=now)
+    expired_at = Column(pg.TIMESTAMP, default=None)
+    revoked_at = Column(pg.TIMESTAMP, default=None)
 
     client = orm.relationship(Client)
 
@@ -55,21 +55,21 @@ class Contract(Model):
 class Request(Model):
     __tablename__ = "requests"
 
-    id = Column("request_id", pgsql.UUID, primary_key=True)
-    remote = Column(pgsql.VARCHAR)
-    method = Column(pgsql.VARCHAR)
-    path = Column(pgsql.VARCHAR)
-    body = Column(pgsql.JSONB)
-    created_at = Column(pgsql.TIMESTAMP)
+    id = Column("request_id", pg.UUID, primary_key=True)
+    remote = Column(pg.VARCHAR)
+    method = Column(pg.VARCHAR)
+    path = Column(pg.VARCHAR)
+    body = Column(pg.JSONB)
+    created_at = Column(pg.TIMESTAMP)
 
 
 class Response(Model):
     __tablename__ = "responses"
 
     id = Column("request_id", None, ForeignKey(Request.id), primary_key=True)
-    body = Column(pgsql.JSONB)
-    code = Column(pgsql.SMALLINT)
-    created_at = Column(pgsql.TIMESTAMP)
+    body = Column(pg.JSONB)
+    code = Column(pg.SMALLINT)
+    created_at = Column(pg.TIMESTAMP)
 
     request = orm.relationship(Request)
 
@@ -77,7 +77,7 @@ class Response(Model):
 class Identification(Model):
     __tablename__ = "identifications"
 
-    id = Column("identification_id", pgsql.UUID, primary_key=True)
+    id = Column("identification_id", pg.UUID, primary_key=True)
     request_id = Column(None, ForeignKey(Request.id))
     contract_id = Column(None, ForeignKey(Contract.id))
 

@@ -199,7 +199,7 @@ def generate_uuid() -> str:
 
 @pytest.fixture
 def request_id_generator() -> Callable:
-    return utils.generate_request_id
+    return utils.make_request_id
 
 
 class AuthFactory(factory.alchemy.SQLAlchemyModelFactory):
