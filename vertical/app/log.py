@@ -12,10 +12,10 @@ access_logger = logging.getLogger("access")
 
 class AccessLogger:
 
-    __slots__ = ("logger", )
+    __slots__ = ("_logger",)
 
     def __init__(self, logger: logging.Logger):
-        self.logger = logger
+        self._logger = logger
 
     def log(self, response: ResponseProtocol, request_time: float) -> None:
         extra = {
@@ -29,7 +29,7 @@ class AccessLogger:
             "response_length": len(response.body),
             "response_code": response.code,
         }
-        self.logger.info("Access info", extra=extra)
+        self._logger.info("Access info", extra=extra)
 
 
 CONFIG = {

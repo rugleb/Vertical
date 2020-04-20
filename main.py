@@ -15,6 +15,9 @@ config = {
             "timeout": env.float("AUTH_DB_TIMEOUT", 10),
             "command_timeout": env.float("AUTH_DB_COMMAND_TIMEOUT", 5),
         },
+        "logger": {
+            "name": "audit",
+        },
     },
     "hunter_db": {
         "bind": {

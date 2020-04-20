@@ -1,3 +1,4 @@
+import logging
 from http import HTTPStatus
 from typing import Dict, Optional, TypedDict
 from uuid import UUID
@@ -151,24 +152,33 @@ class AsyncpgPoolConfig(TypedDict, total=False):
     max_cached_statement_lifetime: float
 
 
+class LoggerConfig(TypedDict):
+    name: str
+
+
 class AuthServiceConfig(TypedDict):
     pool: AsyncpgPoolConfig
+    logger: LoggerConfig
 
 
 class AuthService:
 
     __slots__ = (
         "_pool",
+        "_logger",
     )
 
-    def __init__(self, pool: Pool):
+    def __init__(self, pool: Pool, logger: logging.Logger):
         self._pool = pool
+        self._logger = logger
 
     async def setup(self) -> None:
         await self._pool
+        self._logger.debug("Auth service initialized")
 
     async def cleanup(self) -> None:
         await self._pool.close()
+        self._logger.debug("Auth service shutdown")
 
     async def ping(self) -> bool:
         return await self._pool.fetchval("SELECT TRUE;")
@@ -238,6 +248,23 @@ class AuthService:
             return None
         return Contract(**record)
 
+    async def get_client(self, contract: Contract) -> Client:
+        query = """
+            SELECT
+                clients.client_id AS id
+                , clients.name
+                , clients.created_at
+            FROM
+                clients JOIN contracts USING (client_id)
+            WHERE
+                contracts.contract_id = $1::UUID
+            LIMIT 1
+            ;
+        """
+
+        record = await self._pool.fetchrow(query, contract.id)
+        return Client(**record)
+
     async def identify(self, request_id: UUID, contract_id: UUID):
         query = """
             INSERT INTO identifications
@@ -256,26 +283,38 @@ class AuthService:
 
     async def authorize(self, request: RequestProtocol) -> Identification:
         if not request.authorization:
+            self._logger.warning("Authorization header not recognized")
             raise AuthHeaderNotRecognized()
 
         try:
             scheme, token = request.authorization.split()
         except ValueError:
+            self._logger.warning("Invalid authorization scheme")
             raise InvalidAuthScheme()
 
         if scheme != hdrs.BEARER:
+            self._logger.warning("Expected Bearer token scheme")
             raise BearerExpected()
 
         contract = await self.get_contract_by_token(token)
 
         if not contract:
+            self._logger.warning("Contract not found")
             raise InvalidAccessToken()
 
+        self._logger.info(f"Found contract with id {contract.id}")
+
+        client = await self.get_client(contract)
+
         if contract.is_expired():
+            self._logger.warning(f"Contract expired at {contract.expired_at}")
             raise ContractExpired(contract)
 
         if contract.is_revoked():
+            self._logger.warning(f"Contract revoked at {contract.revoked_at}")
             raise ContractRevoked(contract)
+
+        self._logger.info(f"Authorized {client.name} with id {client.id}")
 
         request_id = UUID(request.identifier)
         return await self.identify(request_id, contract.id)
@@ -304,8 +343,20 @@ class AsyncpgPoolSchema(Schema):
         return create_pool(**data)
 
 
+class LoggerSchema(Schema):
+    name = fields.Str(required=True)
+
+    class Meta:
+        unknown = EXCLUDE
+
+    @post_load
+    def make_logger(self, data: Dict, **kwargs) -> logging.Logger:
+        return logging.getLogger(**data)
+
+
 class AuthServiceSchema(Schema):
     pool = fields.Nested(AsyncpgPoolSchema, required=True)
+    logger = fields.Nested(LoggerSchema, required=True)
 
     class Meta:
         unknown = EXCLUDE

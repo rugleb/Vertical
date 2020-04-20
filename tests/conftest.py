@@ -168,6 +168,9 @@ def config(
             "pool": {
                 "dsn": str(sqlalchemy_auth_session.bind.url),
             },
+            "logger": {
+                "name": "audit",
+            },
         },
         "hunter_db": {
             "bind": {
@@ -176,7 +179,7 @@ def config(
         },
         "phone_service": {
             "delta": 180,
-        }
+        },
     }
 
 
