@@ -12,7 +12,7 @@ VERSION := latest
 LOCAL_IMAGE_TAG := $(VERTICAL):$(VERSION)
 
 AZURE_IMAGE_TAG := altdata.azurecr.io/vertical/$(LOCAL_IMAGE_TAG)
-HARBOR_IMAGE_TAG := altdata.azurecr.io/vertical/$(LOCAL_IMAGE_TAG)
+HARBOR_IMAGE_TAG := 172.16.5.30/vertical/$(LOCAL_IMAGE_TAG)
 
 .venv:
 	poetry env use 3.8
