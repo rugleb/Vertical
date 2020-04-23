@@ -3,6 +3,7 @@ name = "vertical"
 version = "0.0.1"
 description = ""
 authors = ["Gleb Karpushkin <rugleb@gmail.com>"]
+maintainers = ["Gleb Karpushkin <rugleb@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
