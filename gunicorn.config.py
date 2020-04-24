@@ -70,7 +70,7 @@ limit_request_fields = env("GUNICORN_LIMIT_REQUEST_FIELDS", 64)
 limit_request_field_size = env("GUNICORN_LIMIT_REQUEST_FIELD_SIZE", 128)
 
 # Load application code before the worker processes are forked.
-preload_app = env("GUNICORN_PRELOAD_APP", True)
+preload_app = env("GUNICORN_PRELOAD_APP", False)
 
 # Disables the use of sendfile.
 sendfile = env("GUNICORN_SENDFILE", True)
