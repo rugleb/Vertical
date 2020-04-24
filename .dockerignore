@@ -1,0 +1,9 @@
+*
+!migrations
+!vertical
+!alembic.ini
+!gunicorn.config.py
+!main.py
+!poetry.lock
+!pyproject.toml
+!README.md
