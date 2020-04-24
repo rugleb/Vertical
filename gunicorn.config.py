@@ -19,13 +19,13 @@ worker_class = env("GUNICORN_WORKER_CLASS", "uvicorn.workers.UvicornWorker")
 max_requests = env("GUNICORN_MAX_REQUESTS", 1024)
 
 # Workers silent for more than this many seconds are killed and restarted.
-timeout = env("GUNICORN_TIMEOUT", 15)
+timeout = env("GUNICORN_TIMEOUT", 3600)
 
 # Timeout for graceful workers restart.
 graceful_timeout = env("GUNICORN_GRACEFUL_TIMEOUT", 5)
 
 # The number of seconds to wait for requests on a Keep-Alive connection.
-keepalive = env("GUNICORN_KEEPALIVE", 2)
+keepalive = env("GUNICORN_KEEPALIVE", 5)
 
 # Detaches the server from the controlling terminal and enters the background.
 daemon = env("GUNICORN_DAEMON", False)
@@ -70,7 +70,7 @@ limit_request_fields = env("GUNICORN_LIMIT_REQUEST_FIELDS", 64)
 limit_request_field_size = env("GUNICORN_LIMIT_REQUEST_FIELD_SIZE", 128)
 
 # Load application code before the worker processes are forked.
-preload_app = env("GUNICORN_PRELOAD_APP", False)
+preload_app = env("GUNICORN_PRELOAD_APP", True)
 
 # Disables the use of sendfile.
 sendfile = env("GUNICORN_SENDFILE", True)
