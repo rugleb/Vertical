@@ -204,7 +204,8 @@ class RequestIDFilter(logging.Filter):
         super().__init__(name)
 
     def filter(self, record: logging.LogRecord) -> int:
-        setattr(record, "request_id", self.context_var.get())
+        request_id = self.context_var.get()
+        setattr(record, "request_id", request_id)
         return super().filter(record)
 
 

@@ -50,7 +50,8 @@ class ExceptionHandlerMiddleware(base.BaseHTTPMiddleware):
         try:
             return await handler(request)
         except Exception as e:
-            app_logger.error(f"Caught unhandled {e.__class__} exception: {e}")
+            name = e.__class__.__name__
+            app_logger.error(f"Caught unhandled {name} exception: {e}")
             return server_error()
 
 
