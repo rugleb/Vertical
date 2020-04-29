@@ -25,7 +25,6 @@ config = {
             "echo": env.bool("HUNTER_DB_ECHO", False),
             "echo_pool": env.bool("HUNTER_DB_ECHO_POOL", False),
             "encoding": env.str("HUNTER_DB_ENCODING", "utf-8"),
-            "isolation_level": env.str("HUNTER_DB_ISOLATION_LEVEL", None),
             "max_overflow": env.int("HUNTER_DB_MAX_OVERFLOW", 5),
             "pool_pre_ping": env.bool("HUNTER_DB_POOL_PRE_PING", False),
             "pool_size": env.int("HUNTER_DB_POOL_SIZE", 5),
