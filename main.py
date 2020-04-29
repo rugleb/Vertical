@@ -30,7 +30,6 @@ config = {
             "pool_size": env.int("HUNTER_DB_POOL_SIZE", 5),
             "pool_recycle": env.int("HUNTER_DB_POOL_RECYCLE", 3600),
             "pool_timeout": env.int("HUNTER_DB_POOL_TIMEOUT", 10),
-            "strategy": env.str("HUNTER_DB_STRATEGY", "plain"),
         },
         "logger": {
             "name": "hunter",

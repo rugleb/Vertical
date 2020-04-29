@@ -60,7 +60,7 @@ flake: .venv
 lint: isort mypy bandit flake test
 
 build: .build
-	docker build . -t $(IMAGE_NAME) --pull --no-cache
+	docker build . -t $(IMAGE_NAME) --pull
 	docker save -o $(BUILD)/$(IMAGE_NAME).tar $(IMAGE_NAME)
 
 deploy: build

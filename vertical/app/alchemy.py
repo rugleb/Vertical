@@ -71,7 +71,7 @@ class SQLAlchemyEngineSchema(Schema):
     echo_pool = fields.Bool(missing=False)
     encoding = fields.Str(missing="utf-8")
     implicit_returning = fields.Bool(missing=True)
-    isolation_level = fields.Str(missing=None)
+    isolation_level = fields.Str(required=False)
     logging_name = fields.Str(missing="sqlalchemy.engine")
     pool_logging_name = fields.Str(missing="sqlalchemy.pool")
     max_overflow = fields.Int(missing=10)
@@ -80,7 +80,7 @@ class SQLAlchemyEngineSchema(Schema):
     pool_recycle = fields.Int(missing=3600)
     pool_reset_on_return = fields.Str(missing="rollback")
     pool_timeout = fields.Int(missing=30)
-    strategy = fields.Str(missing="plain")
+    strategy = fields.Str(required=False)
 
     class Meta:
         unknown = EXCLUDE

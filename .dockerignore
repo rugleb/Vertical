@@ -1,5 +1,6 @@
 *
 !migrations
+!oracle
 !vertical
 !alembic.ini
 !gunicorn.config.py
