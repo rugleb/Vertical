@@ -1,24 +1,28 @@
 from collections import defaultdict
 from datetime import date, timedelta
 from logging import Logger
-from typing import Dict, List, Optional, Protocol, TypedDict
+from os import getenv
+from typing import Dict, Final, List, Optional, Protocol, TypedDict
 
 import attr
 from marshmallow import EXCLUDE, Schema, fields, post_load
 from pygost import gost341194
-from sqlalchemy import DATE, VARCHAR, Column, orm
+from sqlalchemy import DATE, VARCHAR, Column, MetaData, orm
 from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
 
 from .log import LoggerConfig, LoggerSchema
 
-DATE_FORMAT = "%Y.%m.%d"
+DATE_FORMAT: Final = "%Y.%m.%d"
 
+METADATA: Final = MetaData(
+    schema=getenv("SUBMISSIONS_SCHEMA_NAME", "yavert"),
+)
 
-Model: DeclarativeMeta = declarative_base()
+Model: DeclarativeMeta = declarative_base(metadata=METADATA)
 
 
 class Submission(Model):
-    __tablename__ = "hundata"
+    __tablename__ = getenv("SUBMISSIONS_VIEW_NAME", "hundata")
 
     id = Column("sub_no", VARCHAR(10), nullable=False, primary_key=True)
     date = Column("creation_datetime", DATE(), nullable=False)

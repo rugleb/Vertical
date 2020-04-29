@@ -144,14 +144,19 @@ def sqlalchemy_hunter_bind() -> Iterator:
 @pytest.fixture
 def sqlalchemy_hunter_session(sqlalchemy_hunter_bind: engine.Engine):
     meta = hunter.Model.metadata
-    meta.create_all(sqlalchemy_hunter_bind)
+    sqlalchemy_hunter_bind.execute(
+        f"CREATE SCHEMA IF NOT EXISTS {meta.schema}",
+    )
 
+    meta.create_all(sqlalchemy_hunter_bind)
     HunterSession.configure(bind=sqlalchemy_hunter_bind)
     try:
         yield HunterSession()
     finally:
         HunterSession.remove()
         meta.drop_all(sqlalchemy_hunter_bind)
+
+        sqlalchemy_hunter_bind.execute(f"DROP SCHEMA {meta.schema}")
 
 
 @pytest.fixture

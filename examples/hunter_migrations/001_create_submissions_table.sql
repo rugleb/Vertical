@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS submissions
+CREATE TABLE IF NOT EXISTS yavert.submissions
 (
     sub_no                  VARCHAR(10)        NOT NULL
         CONSTRAINT submissions_pk
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS submissions
 );
 
 INSERT INTO
-    submissions (sub_no, creation_datetime, phk1, dob, tel)
+    yavert.submissions (sub_no, creation_datetime, phk1, dob, tel)
 VALUES
     (
         '1',
