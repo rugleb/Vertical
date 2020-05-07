@@ -3,13 +3,12 @@ from http import HTTPStatus
 from typing import Callable, Dict
 
 import pytest
-from factory import Factory
 from sqlalchemy.orm import Session
 from starlette.applications import Starlette
 from starlette.testclient import TestClient
 
 from vertical import hdrs
-from vertical.app import auth, hunter, utils
+from vertical.app import auth, utils
 
 APPLICATION_JSON = "application/json"
 
@@ -430,31 +429,29 @@ class TestPhoneReliabilityEndpoint:
             sqlalchemy_auth_session: Session,
             allowed_contract: auth.Contract,
             phone_number_generator: Callable,
-            submission_factory: Factory,
+            create_submission: Callable,
     ) -> None:
         registered_at = date(2020, 1, 1)
         updated_at = date(2020, 5, 1)
 
-        person_name_hash = hunter.make_hash("Jake")
-        person_birthday_hash = hunter.make_hash("1970-01-01")
+        person_name = "Mike"
+        person_birthday = "1920-01-01"
+        person_phone_number = phone_number_generator()
 
-        phone_number = phone_number_generator()
-        phone_number_hash = hunter.make_hash(phone_number)
-
-        submission_factory.create(
-            id=1,
-            date=registered_at,
-            phone_number_hash=phone_number_hash,
-            person_name_hash=person_name_hash,
-            person_birthday_hash=person_birthday_hash,
+        create_submission(
+            submission_number=1,
+            submission_created_at=registered_at,
+            person_name=person_name,
+            person_birthday=person_birthday,
+            person_phone_number=person_phone_number,
         )
 
-        submission_factory.create(
-            id=2,
-            date=updated_at,
-            phone_number_hash=phone_number_hash,
-            person_name_hash=person_name_hash,
-            person_birthday_hash=person_birthday_hash,
+        create_submission(
+            submission_number=2,
+            submission_created_at=updated_at,
+            person_name=person_name,
+            person_birthday=person_birthday,
+            person_phone_number=person_phone_number,
         )
 
         token = allowed_contract.token
@@ -465,7 +462,7 @@ class TestPhoneReliabilityEndpoint:
         }
 
         json = {
-            "number": phone_number,
+            "number": person_phone_number,
         }
 
         r = client.post(self.path, json=json, headers=headers)
@@ -506,31 +503,29 @@ class TestPhoneReliabilityEndpoint:
             sqlalchemy_auth_session: Session,
             allowed_contract: auth.Contract,
             phone_number_generator: Callable,
-            submission_factory: Factory,
+            create_submission: Callable,
     ) -> None:
         registered_at = date(2000, 1, 1)
         updated_at = date(2020, 1, 1)
 
-        person_name_hash = hunter.make_hash("Jake")
-        person_birthday_hash = hunter.make_hash("1970-01-01")
+        person_name = "Jake"
+        person_birthday = "1970.01.01"
+        person_phone_number = phone_number_generator()
 
-        phone_number = phone_number_generator()
-        phone_number_hash = hunter.make_hash(phone_number)
-
-        submission_factory.create(
-            id=1,
-            date=registered_at,
-            phone_number_hash=phone_number_hash,
-            person_name_hash=person_name_hash,
-            person_birthday_hash=person_birthday_hash,
+        create_submission(
+            submission_number=1,
+            submission_created_at=registered_at,
+            person_name=person_name,
+            person_birthday=person_birthday,
+            person_phone_number=person_phone_number,
         )
 
-        submission_factory.create(
-            id=2,
-            date=updated_at,
-            phone_number_hash=phone_number_hash,
-            person_name_hash=person_name_hash,
-            person_birthday_hash=person_birthday_hash,
+        create_submission(
+            submission_number=2,
+            submission_created_at=updated_at,
+            person_name=person_name,
+            person_birthday=person_birthday,
+            person_phone_number=person_phone_number,
         )
 
         token = allowed_contract.token
@@ -541,7 +536,7 @@ class TestPhoneReliabilityEndpoint:
         }
 
         json = {
-            "number": phone_number,
+            "number": person_phone_number,
         }
 
         r = client.post(self.path, json=json, headers=headers)

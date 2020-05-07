@@ -10,7 +10,6 @@ from starlette.responses import Response, StreamingResponse
 from vertical import hdrs
 
 from .adapters import RequestAdapter, ResponseAdapter
-from .alchemy import SQLAlchemyStorage
 from .auth import AuthService
 from .context import REQUEST_ID
 from .log import AccessLogger, access_logger, app_logger
@@ -158,23 +157,7 @@ async def resolve_response(streaming: StreamingResponse) -> Response:
     return Response(content, status_code, headers, media_type, background)
 
 
-class HunterDatabaseMiddleware(base.BaseHTTPMiddleware):
-
-    async def dispatch(
-        self,
-        request: Request,
-        handler: base.RequestResponseEndpoint,
-    ) -> Response:
-        hunter_db: SQLAlchemyStorage = request.app.state.hunter_db
-
-        try:
-            return await handler(request)
-        finally:
-            hunter_db.remove_session()
-
-
 def add_middlewares(app: Starlette) -> None:
-    app.add_middleware(HunterDatabaseMiddleware)
     app.add_middleware(AccessMiddleware, ignore_paths=["/ping"])
     app.add_middleware(JsonParserMiddleware)
     app.add_middleware(ContentTypeMiddleware)

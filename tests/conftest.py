@@ -4,15 +4,17 @@ import string
 import time
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timedelta
-from typing import Callable, Dict, Iterator, Type
+from datetime import date, datetime, timedelta
+from typing import Callable, Dict, Iterator
 
 import docker
 import factory
 import pytest
+import sqlalchemy as sa
 from alembic.command import downgrade, upgrade
 from alembic.config import Config
-from sqlalchemy import engine, exc, orm
+from sqlalchemy import exc, orm
+from starlette.applications import Starlette
 from starlette.testclient import TestClient
 
 from vertical.app import AppConfig, auth, create_app, hunter, utils
@@ -63,7 +65,7 @@ def postgres_server(
         client.close()
 
 
-def establish_connection(bind: engine.Engine) -> engine.Engine:
+def establish_connection(bind: sa.engine.Engine) -> sa.engine.Engine:
     for _ in range(100):
         try:
             bind.connect()
@@ -74,10 +76,10 @@ def establish_connection(bind: engine.Engine) -> engine.Engine:
 
 
 @contextmanager
-def sqlalchemy_bind(config: Dict) -> Iterator[engine.Engine]:
+def sqlalchemy_bind(config: Dict) -> Iterator[sa.engine.Engine]:
     url_template = "postgresql://{user}:{password}@{host}:{port}/{database}"
     url = url_template.format_map(config)
-    bind = engine.create_engine(url)
+    bind = sa.engine.create_engine(url)
     try:
         yield establish_connection(bind)
     finally:
@@ -85,7 +87,7 @@ def sqlalchemy_bind(config: Dict) -> Iterator[engine.Engine]:
 
 
 @contextmanager
-def sqlalchemy_session(bind: engine.Engine) -> Iterator[orm.Session]:
+def sqlalchemy_session(bind: sa.engine.Engine) -> Iterator[orm.Session]:
     session_factory = orm.sessionmaker(bind)
     session = session_factory()
     try:
@@ -95,7 +97,7 @@ def sqlalchemy_session(bind: engine.Engine) -> Iterator[orm.Session]:
 
 
 @contextmanager
-def run_migrations(path: str, bind: engine.Engine) -> Iterator:
+def run_migrations(path: str, bind: sa.engine.Engine) -> Iterator:
     config = Config(path)
 
     url = str(bind.url)
@@ -118,11 +120,10 @@ def sqlalchemy_auth_bind() -> Iterator:
 
 
 AuthSession = orm.scoped_session(orm.sessionmaker())
-HunterSession = orm.scoped_session(orm.sessionmaker())
 
 
 @pytest.fixture
-def sqlalchemy_auth_session(sqlalchemy_auth_bind: engine.Engine) -> Iterator:
+def sqlalchemy_auth_session(sqlalchemy_auth_bind: sa.engine.Engine):
     alembic = os.path.join(ROOT, "alembic.ini")
     with run_migrations(alembic, sqlalchemy_auth_bind):
         AuthSession.configure(bind=sqlalchemy_auth_bind)
@@ -142,59 +143,105 @@ def sqlalchemy_hunter_bind() -> Iterator:
 
 
 @pytest.fixture
-def sqlalchemy_hunter_session(sqlalchemy_hunter_bind: engine.Engine):
-    meta = hunter.Model.metadata
-    sqlalchemy_hunter_bind.execute(
-        f"CREATE SCHEMA IF NOT EXISTS {meta.schema}",
-    )
+def sqlalchemy_hunter_session(
+    sqlalchemy_hunter_bind: sa.engine.Engine,
+    app: Starlette,
+):
+    meta = app.state.hunter_service.metadata()
 
+    sqlalchemy_hunter_bind.execute("CREATE SCHEMA " + meta.schema)
     meta.create_all(sqlalchemy_hunter_bind)
-    HunterSession.configure(bind=sqlalchemy_hunter_bind)
-    try:
-        yield HunterSession()
-    finally:
-        HunterSession.remove()
-        meta.drop_all(sqlalchemy_hunter_bind)
 
-        sqlalchemy_hunter_bind.execute(f"DROP SCHEMA {meta.schema}")
+    try:
+        yield sqlalchemy_hunter_bind
+    finally:
+        meta.drop_all(sqlalchemy_hunter_bind)
+        sqlalchemy_hunter_bind.execute("DROP SCHEMA " + meta.schema)
 
 
 @pytest.fixture
-def config(
-        sqlalchemy_auth_session: orm.Session,
-        sqlalchemy_hunter_session: orm.Session,
-) -> Iterator[AppConfig]:
-    yield {
-        "auth_service": {
-            "pool": {
-                "dsn": str(sqlalchemy_auth_session.bind.url),
-            },
-            "logger": {
-                "name": "audit",
-            },
+def hunter_config(sqlalchemy_hunter_bind: sa.engine.Engine) -> Dict:
+    return {
+        "bind": {
+            "name_or_url": str(sqlalchemy_hunter_bind.url),
         },
-        "hunter_db": {
-            "bind": {
-                "name_or_url": str(sqlalchemy_hunter_session.bind.url),
-            },
-            "logger": {
-                "name": "hunter",
-            },
+        "days": 180,
+        "schema": "yavert",
+        "table": "hundata",
+        "logger": {
+            "name": "hunter",
         },
-        "phone_service": {
-            "delta": 180,
-            "logger": {
-                "name": "hunter",
-            },
+        "timeout": 10,
+    }
+
+
+@pytest.fixture
+def auth_config(sqlalchemy_auth_session: orm.Session) -> Dict:
+    return {
+        "pool": {
+            "dsn": str(sqlalchemy_auth_session.bind.url),
+        },
+        "logger": {
+            "name": "audit",
         },
     }
 
 
 @pytest.fixture
-def client(config: AppConfig) -> Iterator:
-    app = create_app(config)
+def config(
+    auth_config: auth.AuthServiceConfig,
+    hunter_config: hunter.HunterServiceConfig,
+) -> Iterator[AppConfig]:
+    yield {
+        "auth_service": auth_config,
+        "hunter_service": hunter_config,
+    }
+
+
+@pytest.fixture
+def app(config: AppConfig) -> Starlette:
+    return create_app(config)
+
+
+@pytest.fixture
+def client(app: Starlette, sqlalchemy_hunter_session) -> Iterator:
     with TestClient(app, raise_server_exceptions=False) as client:
         yield client
+
+
+def submission_factory(
+    submission_number: int,
+    submission_created_at: date,
+    person_name: str,
+    person_birthday: str,
+    person_phone_number: str,
+) -> Dict:
+    person_name_hash = hunter.make_hash(person_name)
+    person_birthday_hash = hunter.make_hash(person_birthday)
+    person_phone_number_hash = hunter.make_hash(person_phone_number)
+
+    return {
+        "sub_no": submission_number,
+        "creation_datetime": submission_created_at,
+        "phk1": person_name_hash,
+        "tel": person_phone_number_hash,
+        "dob": person_birthday_hash,
+    }
+
+
+@pytest.fixture
+def create_submission(
+    sqlalchemy_hunter_session: sa.engine.Engine,
+    app: Starlette,
+) -> Callable:
+    table = app.state.hunter_service.submissions()
+
+    def f(**kwargs):
+        values = submission_factory(**kwargs)
+        query = table.insert().values(**values)
+        return sqlalchemy_hunter_session.execute(query)
+
+    return f
 
 
 def generate_uuid() -> str:
@@ -269,26 +316,3 @@ def generate_phone_number():
 @pytest.fixture
 def phone_number_generator() -> Callable:
     return generate_phone_number
-
-
-class HunterFactory(factory.alchemy.SQLAlchemyModelFactory):
-    class Meta:
-        abstract = True
-        sqlalchemy_session = HunterSession
-        sqlalchemy_session_persistence = "commit"
-
-
-class SubmissionFactory(HunterFactory):
-    class Meta:
-        model = hunter.Submission
-
-    id = factory.Sequence(lambda n: n)
-    date = factory.LazyFunction(datetime.now)
-    phone_number_hash = None
-    person_name_hash = None
-    person_birthday_hash = None
-
-
-@pytest.fixture
-def submission_factory() -> Type:
-    return SubmissionFactory

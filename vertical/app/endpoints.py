@@ -1,4 +1,5 @@
 from functools import wraps
+from typing import Dict
 
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -8,6 +9,7 @@ from vertical import hdrs
 
 from .adapters import RequestAdapter
 from .auth import AuthService
+from .hunter import HunterService
 from .models import Phone
 from .responses import ok
 from .types import Endpoint
@@ -17,6 +19,14 @@ __all__ = ("add_routes", )
 
 def get_auth_service(request: Request) -> AuthService:
     return request.app.state.auth_service
+
+
+def get_hunter_service(request: Request) -> HunterService:
+    return request.app.state.hunter_service
+
+
+def get_json(request: Request) -> Dict:
+    return request.state.json
 
 
 def auth(endpoint: Endpoint) -> Endpoint:
@@ -40,15 +50,13 @@ async def ping(request: Request) -> Response:
 
 @auth
 async def phone_reliability(request: Request) -> Response:
-    json = request.state.json
+    json = get_json(request)
     phone = Phone.from_dict(json)
 
-    phone_service = request.app.state.phone_service
-    hunter_session = request.app.state.hunter_db.get_session()
+    hunter = get_hunter_service(request)
+    reliability = await hunter.verify(phone.number)
 
-    reliability = phone_service.verify(phone, hunter_session)
     data = reliability.to_dict()
-
     return ok(data)
 
 

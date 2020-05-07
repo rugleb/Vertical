@@ -1,34 +1,30 @@
-from collections import defaultdict
-from datetime import date, timedelta
-from logging import Logger
-from os import getenv
-from typing import Dict, Final, List, Optional, Protocol, TypedDict
+import asyncio
+import logging
+import time
+from datetime import date
+from typing import Dict, Final, Optional, TypedDict
 
 import attr
+import sqlalchemy as sa
 from marshmallow import EXCLUDE, Schema, fields, post_load
 from pygost import gost341194
-from sqlalchemy import DATE, VARCHAR, Column, MetaData, orm
-from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
+from starlette.concurrency import run_in_threadpool
 
+from .alchemy import SQLAlchemyEngineConfig, SQLAlchemyEngineSchema
 from .log import LoggerConfig, LoggerSchema
 
-DATE_FORMAT: Final = "%Y.%m.%d"
-
-METADATA: Final = MetaData(
-    schema=getenv("SUBMISSIONS_SCHEMA_NAME", "yavert"),
+__all__ = (
+    "Period",
+    "PeriodSchema",
+    "Reliability",
+    "ReliabilitySchema",
+    "make_hash",
+    "HunterServiceConfig",
+    "HunterService",
+    "HunterServiceSchema",
 )
 
-Model: DeclarativeMeta = declarative_base(metadata=METADATA)
-
-
-class Submission(Model):
-    __tablename__ = getenv("SUBMISSIONS_VIEW_NAME", "hundata")
-
-    id = Column("sub_no", VARCHAR(10), nullable=False, primary_key=True)
-    date = Column("creation_datetime", DATE(), nullable=False)
-    phone_number_hash = Column("tel", VARCHAR(64), nullable=False)
-    person_name_hash = Column("phk1", VARCHAR(64), nullable=False)
-    person_birthday_hash = Column("dob", VARCHAR(64), nullable=False)
+DATE_FORMAT: Final = "%Y.%m.%d"
 
 
 @attr.s(slots=True, frozen=True)
@@ -62,87 +58,161 @@ def make_hash(data: str) -> str:
     return hashed.hexdigest().upper()
 
 
-def resolve_person_key(submission: Submission) -> str:
-    return submission.person_name_hash + submission.person_birthday_hash
-
-
-class Phone(Protocol):
-    number: str
-
-
-class PhoneServiceConfig(TypedDict):
-    delta: int
+class HunterServiceConfig(TypedDict):
+    bind: SQLAlchemyEngineConfig
+    days: int
+    schema: str
+    table: str
+    timeout: float
     logger: LoggerConfig
 
 
-class PhoneService:
+class HunterException(Exception):
+    pass
+
+
+class HunterService:
 
     __slots__ = (
-        "_delta",
-        "_logger",
+        "_days",
+        "_bind",
+        "_metadata",
+        "_submissions",
         "_hash_factory",
-        "_person_key_resolver",
+        "_timeout",
+        "_logger",
     )
 
-    def __init__(self, delta: timedelta, logger: Logger):
-        self._delta = delta
+    def __init__(
+        self,
+        days: int,
+        bind: sa.engine.Engine,
+        schema: str,
+        table: str,
+        timeout: float,
+        logger: logging.Logger,
+    ):
+        self._days = days
+        self._bind = bind
+        self._metadata = sa.MetaData(bind=bind, schema=schema)
+        self._timeout = timeout
         self._logger = logger
 
+        self._submissions = sa.Table(
+            table,
+            self._metadata,
+            sa.Column("sub_no", sa.VARCHAR(10), primary_key=True),
+            sa.Column("creation_datetime", sa.DATE(), nullable=False),
+            sa.Column("tel", sa.VARCHAR(64), nullable=False),
+            sa.Column("phk1", sa.VARCHAR(64), nullable=False),
+            sa.Column("dob", sa.VARCHAR(64), nullable=False),
+        )
+
         self._hash_factory = make_hash
-        self._person_key_resolver = resolve_person_key
+
+    def setup(self) -> None:
+        self._bind.connect()
+
+        schema = self._metadata.schema
+        self._logger.info("Connected to Hunter '%s' schema", schema)
+
+    def cleanup(self) -> None:
+        self._bind.dispose()
 
     def make_hash(self, data: str) -> str:
         return self._hash_factory(data)
 
-    def resolve_person_key(self, submission: Submission) -> str:
-        return self._person_key_resolver(submission)
+    def metadata(self) -> sa.MetaData:
+        return self._metadata
 
-    def verify(self, phone: Phone, session: orm.Session) -> Reliability:
-        phone_number = phone.number
-        phone_number_hash = self.make_hash(phone_number)
+    def submissions(self) -> sa.Table:
+        return self._submissions
 
-        submissions: List[Submission] = session.query(Submission) \
-            .filter(Submission.phone_number_hash == phone_number_hash) \
-            .order_by(Submission.date) \
-            .all()
+    def get_period(self, phone_hash: str) -> Optional[Period]:
+        submissions = self.submissions()
 
-        if not submissions:
-            self._logger.info("No submissions were found")
-            return Reliability(status=False, period=None)
+        registered_at = sa.func.min(submissions.c.creation_datetime)
+        updated_at = sa.func.max(submissions.c.creation_datetime)
 
-        self._logger.info(f"Found %d submissions", len(submissions))
-        period = Period(submissions[0].date, submissions[-1].date)
+        columns = (
+            registered_at.label("registered_at"),
+            updated_at.label("updated_at"),
+        )
 
-        groups: Dict = defaultdict(list)
+        query = sa.select(columns).where(submissions.c.tel == phone_hash)
+        registered_at, updated_at = self._bind.execute(query).fetchone()
 
-        for submission in submissions:
-            key = self.resolve_person_key(submission)
-            groups[key].append(submission)
+        if registered_at is not None:
+            return Period(registered_at, updated_at)
+        return None
 
-        self._logger.info("Divided submissions into %d groups", len(groups))
+    def get_status(self, phone_hash: str) -> bool:
+        submissions = self.submissions()
 
-        for submissions in groups.values():
-            if submissions[0].date + self._delta < submissions[-1].date:
-                self._logger.info(
-                    "Rule of %d days was triggered", self._delta.days
-                )
-                return Reliability(status=True, period=period)
+        registered_at = sa.func.min(submissions.c.creation_datetime)
+        updated_at = sa.func.max(submissions.c.creation_datetime)
 
-        self._logger.info("No rules were triggered")
-        return Reliability(status=False, period=period)
+        delta = (updated_at - registered_at).label("delta")
+
+        deltas = sa.select(
+            [delta]
+        ).where(
+            submissions.c.tel == phone_hash,
+        ).group_by(
+            submissions.c.tel,
+            submissions.c.phk1,
+            submissions.c.dob,
+        ).alias("deltas")
+
+        query = sa.select(
+            [deltas.c.delta]
+        ).where(
+            deltas.c.delta > self._days
+        ).limit(1)
+
+        return self._bind.execute(query).scalar() is not None
+
+    async def verify(self, phone_number: str) -> Reliability:
+        phone_hash = self.make_hash(phone_number)
+
+        gather = asyncio.gather(
+            run_in_threadpool(self.get_status, phone_hash),
+            run_in_threadpool(self.get_period, phone_hash),
+        )
+
+        self._logger.info("Started reliability query")
+        started_at = time.perf_counter()
+
+        try:
+            status, period = await asyncio.wait_for(
+                gather,
+                timeout=self._timeout,
+            )
+        except asyncio.TimeoutError:
+            self._logger.warning("Query timeout is up")
+            raise HunterException("Hunted query exceeded the given timeout")
+        else:
+            return Reliability(status=status, period=period)
+        finally:
+            elapsed = time.perf_counter() - started_at
+            self._logger.info("Query execution time: %.4f ms", elapsed)
 
     @classmethod
-    def from_config(cls, config: PhoneServiceConfig) -> "PhoneService":
-        return PhoneServiceSchema().load(config)
+    def from_config(cls, config: HunterServiceConfig) -> "HunterService":
+        return HunterServiceSchema().load(config)
 
 
-class PhoneServiceSchema(Schema):
-    delta = fields.TimeDelta("days", required=True)
+class HunterServiceSchema(Schema):
+    days = fields.Int(required=True)
+    bind = fields.Nested(SQLAlchemyEngineSchema, required=True)
+    schema = fields.Str(required=True)
+    table = fields.Str(required=True)
+    timeout = fields.Float(required=True)
     logger = fields.Nested(LoggerSchema, required=True)
 
     class Meta:
         unknown = EXCLUDE
 
     @post_load
-    def make_service(self, data: Dict, **kwargs) -> PhoneService:
-        return PhoneService(**data)
+    def release(self, data: Dict, **kwargs) -> HunterService:
+        return HunterService(**data)

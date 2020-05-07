@@ -19,7 +19,7 @@ config = {
             "name": "audit",
         },
     },
-    "hunter_db": {
+    "hunter_service": {
         "bind": {
             "name_or_url": env.str("HUNTER_DB_URL"),
             "echo": env.bool("HUNTER_DB_ECHO", False),
@@ -31,12 +31,10 @@ config = {
             "pool_recycle": env.int("HUNTER_DB_POOL_RECYCLE", 3600),
             "pool_timeout": env.int("HUNTER_DB_POOL_TIMEOUT", 10),
         },
-        "logger": {
-            "name": "hunter",
-        },
-    },
-    "phone_service": {
-        "delta": env.int("PHONE_SERVICE_DELTA_DAYS", 180),
+        "days": env.int("HUNTER_DELTA_DAYS", 180),
+        "schema": env.str("HUNTER_DB_SCHEMA", "yavert"),
+        "table": env.str("HUNTER_DB_TABLE", "hundata"),
+        "timeout": env.float("HUNTER_QUERY_TIMEOUT", 10),
         "logger": {
             "name": "hunter",
         },
