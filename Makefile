@@ -10,7 +10,7 @@ export PATH := $(VENV)/bin:$(PATH)
 MIGRATIONS := migrations
 TESTS := tests
 
-IMAGE_NAME := $(PROJECT)_app
+IMAGE_NAME := $(PROJECT)
 
 AZURE_IMAGE_TAG := altdata.azurecr.io/vertical/$(IMAGE_NAME):$(VERSION)
 HARBOR_IMAGE_TAG := 172.16.5.30/vertical/$(IMAGE_NAME):$(VERSION)

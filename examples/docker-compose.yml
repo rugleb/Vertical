@@ -16,10 +16,10 @@ services:
 
   vertical_api:
     build: ..
-    image: vertical_app:latest
+    image: vertical:latest
     container_name: vertical_api
     ports:
-      - 8080:8080
+      - 8080
     environment:
       - AUTH_DB_URL=postgresql://vertical:vertical@vertical_db:5432/vertical
       - HUNTER_DB_URL=postgresql://hunter:hunter@hunter_db:5432/hunter
@@ -31,7 +31,7 @@ services:
       - vertical_network
 
   vertical_migrations:
-    image: vertical_app:latest
+    image: vertical:latest
     container_name: vertical_migrations
     environment:
       - AUTH_DB_URL=postgresql://vertical:vertical@vertical_db:5432/vertical
