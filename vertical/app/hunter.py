@@ -128,6 +128,9 @@ class HunterService:
     def submissions(self) -> sa.Table:
         return self._submissions
 
+    def timeout(self) -> float:
+        return self._timeout
+
     def get_period(self, phone_hash: str) -> Optional[Period]:
         submissions = self.submissions()
 
@@ -186,10 +189,10 @@ class HunterService:
         try:
             status, period = await asyncio.wait_for(
                 gather,
-                timeout=self._timeout,
+                self.timeout(),
             )
         except asyncio.TimeoutError:
-            self._logger.warning("Query timeout is up")
+            self._logger.warning("Hunter query time is up")
             raise HunterException("Hunted query exceeded the given timeout")
         else:
             return Reliability(status=status, period=period)

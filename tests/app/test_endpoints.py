@@ -1,6 +1,7 @@
 from datetime import date
 from http import HTTPStatus
 from typing import Callable, Dict
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy.orm import Session
@@ -570,3 +571,33 @@ class TestPhoneReliabilityEndpoint:
         assert response.request.method == r.request.method
         assert response.request.body == json
         assert response.request.remote == "testclient:50000"
+
+    def test_request_with_query_timeout(
+            self,
+            client: TestClient,
+            allowed_contract: auth.Contract,
+            phone_number_generator: Callable,
+    ) -> None:
+        token = allowed_contract.token
+
+        headers = {
+            hdrs.CONTENT_TYPE: APPLICATION_JSON,
+            hdrs.AUTHORIZATION: f"{hdrs.BEARER} {token}"
+        }
+
+        json = {
+            "number": phone_number_generator(),
+        }
+
+        with patch("vertical.app.hunter.HunterService.timeout") as mocked:
+            mocked.return_value = 1e-10
+
+            r = client.post(self.path, json=json, headers=headers)
+            mocked.assert_called_once()
+
+        http_status = HTTPStatus.INTERNAL_SERVER_ERROR
+        assert r.status_code == http_status
+
+        assert r.json() == {
+            "message": "Internal server error",
+        }
