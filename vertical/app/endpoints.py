@@ -43,9 +43,14 @@ def auth(endpoint: Endpoint) -> Endpoint:
     return wrapper
 
 
-async def ping(request: Request) -> Response:
-    await get_auth_service(request).ping()
+async def ping(_: Request) -> Response:
     return ok(message="pong")
+
+
+@auth
+async def health(request: Request) -> Response:
+    await get_auth_service(request).ping()
+    return ok()
 
 
 @auth
@@ -66,6 +71,13 @@ def add_routes(app: Starlette) -> None:
         route=ping,
         methods=hdrs.METHOD_ALL,
         name="ping",
+    )
+
+    app.add_route(
+        path="/health",
+        route=health,
+        methods=hdrs.METHOD_ALL,
+        name="health",
     )
 
     app.add_route(

@@ -158,7 +158,7 @@ async def resolve_response(streaming: StreamingResponse) -> Response:
 
 
 def add_middlewares(app: Starlette) -> None:
-    app.add_middleware(AccessMiddleware, ignore_paths=["/ping"])
+    app.add_middleware(AccessMiddleware, ignore_paths=["/ping", "/health"])
     app.add_middleware(JsonParserMiddleware)
     app.add_middleware(ContentTypeMiddleware)
     app.add_middleware(ExceptionHandlerMiddleware)

@@ -32,11 +32,6 @@ def upgrade() -> None:
             "contract_id",
         ),
         sa.ForeignKeyConstraint(
-            columns=("request_id", ),
-            refcolumns=("requests.request_id", ),
-            ondelete="CASCADE",
-        ),
-        sa.ForeignKeyConstraint(
             columns=("contract_id", ),
             refcolumns=("contracts.contract_id", ),
             ondelete="CASCADE",

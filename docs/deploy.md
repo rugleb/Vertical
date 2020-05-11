@@ -204,16 +204,16 @@ time="2020.04.21 07:25:45" level="INFO" logger="uvicorn.error" pid="23" request_
 
 Теперь, когда знаем `TOKEN` и `HOST` развернутого Сервиса сделаем 2 запроса.
 
-## Ping
+## Health Check
 
 Метод запроса: `GET`.  
 
-URL адрес: `{HOST}/api/v1/ping`.  
+URL адрес: `{HOST}/api/v1/health`.  
 
 Пример (curl):
 
 ```shell script
-curl --location --request GET '{HOST}/ping' \
+curl --location --request GET '{HOST}/health' \
 --header 'Content-Type: application/json' \
 --header 'Authorization: Bearer {TOKEN}'
 ```
@@ -223,7 +223,7 @@ curl --location --request GET '{HOST}/ping' \
 ```json
 {
     "data": {},
-    "message": "pong"
+    "message": "OK"
 }
 ```
 

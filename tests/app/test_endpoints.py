@@ -49,6 +49,43 @@ class TestPingEndpoint:
         assert sqlalchemy_auth_session.query(auth.Response).first() is None
 
 
+class TestHealthEndpoint:
+    path = "/health"
+
+    def test_that_route_is_named(self, client: TestClient) -> None:
+        app: Starlette = client.app  # type: ignore
+
+        url = app.url_path_for(name="health")
+        assert self.path == url
+
+    def test_that_service_is_alive(
+            self,
+            client: TestClient,
+            sqlalchemy_auth_session: Session,
+            allowed_contract: auth.Contract,
+    ) -> None:
+        headers = {
+            hdrs.CONTENT_TYPE: APPLICATION_JSON,
+            hdrs.AUTHORIZATION: f"{hdrs.BEARER} {allowed_contract.token}"
+        }
+
+        r = client.get(self.path, headers=headers)
+
+        http_status = HTTPStatus.OK
+        assert r.status_code == http_status
+
+        assert r.json() == {
+            "message": "OK",
+            "data": {},
+        }
+
+        request_id = r.headers[hdrs.X_REQUEST_ID]
+        assert utils.is_valid_uuid(request_id)
+
+        assert sqlalchemy_auth_session.query(auth.Request).first() is None
+        assert sqlalchemy_auth_session.query(auth.Response).first() is None
+
+
 class TestPhoneReliabilityEndpoint:
     path = "/reliability/phone"
 
